@@ -1,0 +1,40 @@
+name = "DBGenzPaper"
+uuid = "d9b0e2ff-7c65-4600-8f89-b6dbf0c91e5d"
+version = "0.1.0"
+
+[deps]
+AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+DrWatson = "634d3b9d-ee7a-5ddf-bec9-22491ea816e1"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+MvNormalCDF = "37188c8d-bc69-4638-b057-733e744175ec"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+YFinance = "e4b3b0a2-f9a3-42f3-aabb-32142cceaf77"
+
+[compat]
+Primes = "0.5.7"
+Sobol = "1.5.0"
+
+[extras]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Distributions", "Test"]

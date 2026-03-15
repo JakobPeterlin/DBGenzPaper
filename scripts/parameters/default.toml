@@ -1,0 +1,25 @@
+[runner]
+targets = ["simulation_comparison", "simulation_sparse", "simulation_cholesky", "simulation_mul!", "simulation_richtmyer", "simulation_timed", "plot_cholesky_benchmarks", "plot_mul_benchmarks", "plot_richtmyer", "plot_comparisons", "plot_timed_parts", "export_tables"]
+
+[simulation_comparison]
+sim_reps = 1
+sim_reps_big = 1
+m_values = [24576, 245760]
+small_n_powers = [4, 5, 6, 7, 8, 9]
+big_n_powers = [10, 11, 12]
+
+[simulation_sparse]
+n_reps = 1
+n_diag = 30
+n_powers = [8, 9, 10, 11, 12]
+m_values = [24576, 245760]
+
+[simulation_cholesky]
+n_reps = 1
+
+["simulation_mul!"]
+n_reps = 1
+
+[simulation_timed]
+n_reps = 1
+b0 = 3.0

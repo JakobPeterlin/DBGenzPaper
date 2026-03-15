@@ -1,0 +1,15 @@
+{
+  "timestamp_utc": "2026-03-15T17:30:01.312",
+  "project": "DBGenzPaper",
+  "config_path": "/Users/jakobpeterlin/Documents/dr/GLHT/publish/scripts/parameters/default.toml",
+  "targets": [
+    "simulation_cholesky"
+  ],
+  "results": [
+    {
+      "script": "simulations/simulation_cholesky.jl",
+      "target": "simulation_cholesky",
+      "elapsed_seconds": 10.496273042
+    }
+  ]
+}
