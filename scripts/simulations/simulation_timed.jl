@@ -1,6 +1,7 @@
 include(joinpath(@__DIR__, "setup.jl"))
 
-using Sobol, Random, BenchmarkTools, LinearAlgebra, LoopVectorization, Polyester, AppleAccelerate, TimerOutputs
+using Sobol, Random, BenchmarkTools, LinearAlgebra, LoopVectorization, Polyester, TimerOutputs
+use_accelerated_blas!()
 
 
 
@@ -544,7 +545,7 @@ df_timeit = vcat(df_timeit, df_timeit2)
 
 
 
-CSV.write(resultpath("qmc_parts_timed.csv"), df_timeit)
+CSV.write(sim_resultpath("qmc_parts_timed.csv"), df_timeit)
 
 ##
 

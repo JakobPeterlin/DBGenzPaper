@@ -7,7 +7,7 @@ using CairoMakie
 using LaTeXStrings
 
 function plot_benchmarks(results::DataFrame...;
-    backend_names=("OpenBLAS", "Apple Accelerate"),
+    backend_names=("OpenBLAS", ACCELERATED_BLAS_FULL_LABEL),
     savepath=nothing
 )
     combined = DataFrame()
@@ -68,11 +68,11 @@ function plot_benchmarks(results::DataFrame...;
     return fig
 end
 
-results_OB = CSV.read(resultpath("results_OB.csv"), DataFrame)
-results_ACC = CSV.read(resultpath("results_ACC.csv"), DataFrame)
+results_OB = CSV.read(sim_resultpath("results_OB.csv"), DataFrame)
+results_accelerated = CSV.read(sim_resultpath("results_$(ACCELERATED_BLAS_TAG).csv"), DataFrame)
 
 plot_benchmarks(
     results_OB,
-    results_ACC;
+    results_accelerated;
     savepath=resultpath("cholesky_benchmarks.pdf"),
 )

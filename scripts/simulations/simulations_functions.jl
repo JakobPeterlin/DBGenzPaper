@@ -1,7 +1,8 @@
 
 include(joinpath(@__DIR__, "setup.jl"))
 using DBGenzPaper
-using LinearAlgebra, OpenBLAS_jll, AppleAccelerate, Statistics, DataFrames, CSV, Random, Distributions
+using LinearAlgebra, OpenBLAS_jll, Statistics, DataFrames, CSV, Random, Distributions
+use_accelerated_blas!()
 
 import ProgressMeter: @showprogress
 

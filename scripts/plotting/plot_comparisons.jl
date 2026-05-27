@@ -16,7 +16,7 @@ function add_n_ticks(df::DataFrame; n_col::Symbol)
 end
 
 # Sparse vs fixed matrix comparison (faceted type by matrix)
-sd_path = resultpath("sparse_dense_times.csv")
+sd_path = sim_resultpath("sparse_dense_times.csv")
 indicator_cols = [:n, :n_pts, :matrix]
 
 df_sd = CSV.read(sd_path, DataFrame)
@@ -58,7 +58,7 @@ fig_sd = draw(
 save(resultpath("sparse_dense_times_ratio.pdf"), fig_sd)
 
 # Method comparison (no facets)
-cmp_path = resultpath("comparisson_times.csv")
+cmp_path = sim_resultpath("comparisson_times.csv")
 
 indicator_cols = [:n, :n_pts, :sim]
 df_cmp = CSV.read(cmp_path, DataFrame)

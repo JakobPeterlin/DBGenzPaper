@@ -51,7 +51,7 @@ results_r3 = compare_richtmyer(2^8, m_s, n_reps, rand_spd, Random.default_rng())
 @time results_r4 = compare_richtmyer(2^10, m_s, n_reps, rand_spd, Random.default_rng())
 
 results_r = vcat(results_r1, results_r2, results_r3, results_r4)
-CSV.write(resultpath("results_r.csv"), results_r)
+CSV.write(sim_resultpath("results_r.csv"), results_r)
 
 ##
 
@@ -64,7 +64,7 @@ results_f3 = compare_richtmyer(2^8, m_s, n_reps, fixed_dense, Random.default_rng
 results_f4 = compare_richtmyer(2^10, m_s, n_reps, fixed_dense, Random.default_rng())
 
 results_f = vcat(results_f1, results_f2, results_f3, results_f4)
-CSV.write(resultpath("results_f.csv"), results_f)
+CSV.write(sim_resultpath("results_f.csv"), results_f)
 
 
 ##

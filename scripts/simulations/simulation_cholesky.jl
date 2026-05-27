@@ -110,7 +110,7 @@ n_reps = simcfg("simulation_cholesky", "n_reps", 1000)
 
 
 openblas_path = OpenBLAS_jll.libopenblas_path
-LinearAlgebra.BLAS.lbt_forward(openblas_path)
+LinearAlgebra.BLAS.lbt_forward(openblas_path; clear=true)
 println(BLAS.get_config())
 
 
@@ -118,20 +118,15 @@ println(BLAS.get_config())
 
 
 results_OB = benchmark_cholesky_functions(ns, n_reps)
-CSV.write(resultpath("results_OB.csv"), results_OB)
+CSV.write(sim_resultpath("results_OB.csv"), results_OB)
 
 
 
-# NOTE: `BLAS.lbt_forward(acc_path)` by itself only forwards the LP64 interface to Accelerate.
-# On macOS, to switch Julia's default ILP64 BLAS/LAPACK interface as well, we must use the
-# $NEWLAPACK suffix hints (same mechanism used by AppleAccelerate.jl).
-acc_path = "/System/Library/Frameworks/Accelerate.framework/Accelerate"
-LinearAlgebra.BLAS.lbt_forward(acc_path; clear=true, suffix_hint="\x1a\$NEWLAPACK")
-LinearAlgebra.BLAS.lbt_forward(acc_path; clear=false, suffix_hint="\x1a\$NEWLAPACK\$ILP64")
+use_accelerated_blas!()
 println(BLAS.get_config())
 
-results_ACC = benchmark_cholesky_functions(ns, n_reps)
-CSV.write(resultpath("results_ACC.csv"), results_ACC)
+results_accelerated = benchmark_cholesky_functions(ns, n_reps)
+CSV.write(sim_resultpath("results_$(ACCELERATED_BLAS_TAG).csv"), results_accelerated)
 
 
 

@@ -7,8 +7,8 @@ using PrettyTables
 using Printf
 
 println("Processing Sparse vs Dense...")
-sd_path_times = resultpath("sparse_dense_times.csv")
-sd_path_vals = resultpath("sparse_dense_vals.csv")
+sd_path_times = sim_resultpath("sparse_dense_times.csv")
+sd_path_vals = sim_resultpath("sparse_dense_vals.csv")
 
 df_sd_times = CSV.read(sd_path_times, DataFrame)
 df_sd_p = df_sd_times[df_sd_times.method.=="pnorm", [:n, :n_pts, :matrix, :min]]
@@ -74,8 +74,8 @@ open(resultpath("table_sparse_dense.tex"), "w") do f
 end
 
 println("Processing Method Comparison...")
-cmp_path_times = resultpath("comparisson_times.csv")
-cmp_path_vals = resultpath("comparisson_vals.csv")
+cmp_path_times = sim_resultpath("comparisson_times.csv")
+cmp_path_vals = sim_resultpath("comparisson_vals.csv")
 
 df_cmp_times = CSV.read(cmp_path_times, DataFrame)
 indicator_cols_cmp = [:n, :n_pts, :sim]

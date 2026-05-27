@@ -7,7 +7,7 @@ using CairoMakie
 using LaTeXStrings
 using CategoricalArrays
 
-df_timeit = CSV.read(resultpath("qmc_parts_timed.csv"), DataFrame)
+df_timeit = CSV.read(sim_resultpath("qmc_parts_timed.csv"), DataFrame)
 df_plot = deepcopy(df_timeit)
 df_plot = df_plot[df_plot.Section.!="Total", :]
 df_plot = df_plot[df_plot.Section.!="DB loop", :]

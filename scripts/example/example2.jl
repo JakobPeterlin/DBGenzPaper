@@ -1,6 +1,7 @@
-using CSV, DataFrames, Distributions, LinearAlgebra, Random, Statistics, ProgressMeter, Statistics, StatsBase, Dates, AppleAccelerate
-include(joinpath(@__DIR__, "setup.jl"))
+include(joinpath(@__DIR__, "..", "simulations", "setup.jl"))
+using CSV, DataFrames, Distributions, LinearAlgebra, Random, Statistics, ProgressMeter, Statistics, StatsBase, Dates
 using DBGenzPaper
+use_accelerated_blas!()
 
 # We extend `Statistics.cov` with a method for `Asset`
 import Statistics: cov

@@ -231,5 +231,5 @@ dense_times[!, :matrix] .= "fixed"
 combined_vals = vcat(sparse_vals, dense_vals; cols=:union)
 combined_times = vcat(sparse_times, dense_times; cols=:union)
 
-CSV.write(resultpath("sparse_dense_vals.csv"), combined_vals)
-CSV.write(resultpath("sparse_dense_times.csv"), combined_times)
+CSV.write(sim_resultpath("sparse_dense_vals.csv"), combined_vals)
+CSV.write(sim_resultpath("sparse_dense_times.csv"), combined_times)

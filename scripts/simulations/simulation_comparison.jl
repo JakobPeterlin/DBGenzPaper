@@ -3,7 +3,7 @@ include(joinpath(@__DIR__, "setup.jl"))
 using DBGenzPaper
 
 using Random
-using LinearAlgebra, AppleAccelerate
+using LinearAlgebra
 using Statistics
 using DataFrames
 using CSV
@@ -11,6 +11,7 @@ using RCall
 using FillArrays # Required for mvnormcdf
 using MvNormalCDF
 using ProgressMeter
+use_accelerated_blas!()
 
 
 sim_reps = Int(simcfg("simulation_comparison", "sim_reps", 100))
@@ -357,5 +358,5 @@ comparisson_times_2 = copy(sim2_times)
 comparisson_times_2[!, :sim] = fill("sim2", nrow(comparisson_times_2))
 comparisson_times = vcat(comparisson_times_1, comparisson_times_2; cols=:union)
 
-CSV.write(resultpath("comparisson_vals.csv"), comparisson_vals)
-CSV.write(resultpath("comparisson_times.csv"), comparisson_times)
+CSV.write(sim_resultpath("comparisson_vals.csv"), comparisson_vals)
+CSV.write(sim_resultpath("comparisson_times.csv"), comparisson_times)

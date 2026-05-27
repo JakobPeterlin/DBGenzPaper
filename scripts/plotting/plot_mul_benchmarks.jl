@@ -64,5 +64,5 @@ function plot_mul_benchmarks(mul_comp::DataFrame; savepath=nothing)
     return fig
 end
 
-mul_comp = CSV.read(resultpath("mul_comp.csv"), DataFrame)
+mul_comp = CSV.read(sim_resultpath("mul_comp.csv"), DataFrame)
 plot_mul_benchmarks(mul_comp; savepath=resultpath("mul_comp_times.pdf"))

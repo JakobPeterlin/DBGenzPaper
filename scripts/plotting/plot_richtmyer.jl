@@ -6,8 +6,8 @@ using AlgebraOfGraphics
 using CairoMakie
 using LaTeXStrings
 
-results_r = CSV.read(resultpath("results_r.csv"), DataFrame)
-results_f = CSV.read(resultpath("results_f.csv"), DataFrame)
+results_r = CSV.read(sim_resultpath("results_r.csv"), DataFrame)
+results_f = CSV.read(sim_resultpath("results_f.csv"), DataFrame)
 
 results_r.Matrix .= "Random"
 results_f.Matrix .= "Fixed"

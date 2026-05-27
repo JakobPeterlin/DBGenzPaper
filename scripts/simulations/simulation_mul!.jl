@@ -102,13 +102,13 @@ end
 
 
 
-using AppleAccelerate
+use_accelerated_blas!()
 
-@time mul_comp_AC = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1)
-mul_comp_AC.BLAS .= "Accelerate"
+@time mul_comp_accelerated = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1)
+mul_comp_accelerated.BLAS .= ACCELERATED_BLAS_LABEL
 
 openblas_path = OpenBLAS_jll.libopenblas_path
-LinearAlgebra.BLAS.lbt_forward(openblas_path)
+LinearAlgebra.BLAS.lbt_forward(openblas_path; clear=true)
 
 @time mul_comp_OB = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1_OB)
 mul_comp_OB.BLAS .= "OpenBLAS"
@@ -116,16 +116,12 @@ mul_comp_OB.BLAS .= "OpenBLAS"
 
 
 
-acc_path = "/System/Library/Frameworks/Accelerate.framework/Versions/Current/Accelerate"
-
-acc_path = "/System/Library/Frameworks/Accelerate.framework/Accelerate"
-LinearAlgebra.BLAS.lbt_forward(acc_path; clear=true, suffix_hint="\x1a\$NEWLAPACK")
-LinearAlgebra.BLAS.lbt_forward(acc_path; clear=false, suffix_hint="\x1a\$NEWLAPACK\$ILP64")
+use_accelerated_blas!()
 println(BLAS.get_config())
 
 
-mul_comp = vcat(mul_comp_AC, mul_comp_OB)
-CSV.write(resultpath("mul_comp.csv"), mul_comp)
+mul_comp = vcat(mul_comp_accelerated, mul_comp_OB)
+CSV.write(sim_resultpath("mul_comp.csv"), mul_comp)
 
 
 

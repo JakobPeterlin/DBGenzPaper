@@ -1,16 +1,60 @@
 using DrWatson
 using TOML
 using Pkg
+using LinearAlgebra
 
 @quickactivate "DBGenzPaper"
+using DBGenzPaper: CPU_post_fix, use_MKL_instead_of_ACC
 
 const PROJECT_ROOT = projectdir()
 const DEFAULT_SIM_CONFIG = joinpath(PROJECT_ROOT, "scripts", "parameters", "default.toml")
 const SIM_CONFIG_PATH = get(ENV, "DBGENZPAPER_SIM_CONFIG", DEFAULT_SIM_CONFIG)
 const SIM_CONFIG = isfile(SIM_CONFIG_PATH) ? TOML.parsefile(SIM_CONFIG_PATH) : Dict{String,Any}()
+const APPLE_ACCELERATE_LIB = "/System/Library/Frameworks/Accelerate.framework/Accelerate"
+const ACCELERATED_BLAS_TAG = use_MKL_instead_of_ACC ? "MKL" : "ACC"
+const ACCELERATED_BLAS_LABEL = use_MKL_instead_of_ACC ? "MKL" : "Accelerate"
+const ACCELERATED_BLAS_FULL_LABEL = use_MKL_instead_of_ACC ? "MKL" : "Apple Accelerate"
 
 datapath(parts...) = datadir(parts...)
 resultpath(parts...) = datadir("sims", parts...)
+
+function _cpu_result_filename(filename::AbstractString)
+    root, ext = splitext(filename)
+    if lowercase(ext) == ".csv" && !isempty(CPU_post_fix) && !endswith(root, CPU_post_fix)
+        return string(root, CPU_post_fix, ext)
+    end
+    return filename
+end
+
+function sim_resultpath(parts...)
+    isempty(parts) && return resultpath()
+    path_parts = string.(parts)
+    filename = _cpu_result_filename(path_parts[end])
+    return resultpath(path_parts[1:end-1]..., filename)
+end
+
+function _use_package!(pkg::Symbol)
+    @eval Main using $pkg
+    return nothing
+end
+
+function use_accelerated_blas!()
+    if use_MKL_instead_of_ACC
+        _use_package!(:MKL)
+        if isdefined(Main.MKL, :MKL_jll) && !Main.MKL.MKL_jll.is_available()
+            error("use_MKL_instead_of_ACC is true, but MKL is not available for this platform.")
+        end
+        if isdefined(Main, :MKL) && isdefined(Main.MKL, :lbt_forward_to_mkl)
+            Main.MKL.lbt_forward_to_mkl()
+        end
+    else
+        _use_package!(:AppleAccelerate)
+        LinearAlgebra.BLAS.lbt_forward(APPLE_ACCELERATE_LIB; clear=true, suffix_hint="\x1a\$NEWLAPACK")
+        LinearAlgebra.BLAS.lbt_forward(APPLE_ACCELERATE_LIB; clear=false, suffix_hint="\x1a\$NEWLAPACK\$ILP64")
+    end
+
+    return LinearAlgebra.BLAS.get_config()
+end
 
 mkpath(resultpath())
 
