@@ -107,6 +107,7 @@ use_accelerated_blas!()
 @time mul_comp_accelerated = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1)
 mul_comp_accelerated.BLAS .= ACCELERATED_BLAS_LABEL
 
+
 openblas_path = OpenBLAS_jll.libopenblas_path
 LinearAlgebra.BLAS.lbt_forward(openblas_path; clear=true)
 

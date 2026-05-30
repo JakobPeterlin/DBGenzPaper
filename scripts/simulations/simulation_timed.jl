@@ -1,6 +1,6 @@
 include(joinpath(@__DIR__, "setup.jl"))
 
-using Sobol, Random, BenchmarkTools, LinearAlgebra, LoopVectorization, Polyester, TimerOutputs
+using Sobol, Random, LinearAlgebra, LoopVectorization, TimerOutputs
 use_accelerated_blas!()
 
 

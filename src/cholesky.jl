@@ -141,7 +141,7 @@ end
 
 
 
-function cholesky_classic!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=def_c_bsize(length(b))) where {T<:AbstractFloat}
+function cholesky_classic!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=2^7, block_size2::Int=2^9) where {T<:AbstractFloat}
     n = size(M, 1)
     eps0 = eps() * maximum(abs, view(M, diagind(M)))
     scale_vec = Vector{T}(undef, n)
@@ -165,37 +165,49 @@ function cholesky_classic!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, bloc
         end
     end
 
-    for i0 in 1:block_size:n
-        i1 = min(n, i0 + block_size - 1)
+    @inbounds for ii0 in 1:block_size2:n
+        ii1 = min(n, ii0 + block_size2 - 1)
 
-        for i in i0:i1
-            m_ii = M[i, i]
-            if i > i0
-                m_ii -= dot(view(M, i0:i-1, i), view(M, i0:i-1, i))
-            end
-            m_ii = sqrt(m_ii)
-            M[i, i] = m_ii
-            if (i > i0) && (i < i1)
+        for i0 in ii0:block_size:ii1
+            i1 = min(ii1, i0 + block_size - 1)
+
+            for i in i0:i1
+                m_ii = M[i, i]
+                if i > i0
+                    m_ii -= dot(view(M, i0:i-1, i), view(M, i0:i-1, i))
+                end
+                m_ii = sqrt(m_ii)
+                M[i, i] = m_ii
+                if (i > i0) && (i < i1)
+                    for j in (i+1):i1
+                        c = dot(view(M, i0:i-1, j), view(M, i0:i-1, i))
+                        M[i, j] -= c
+                        M[j, i] = zero(T)
+                    end
+                end
+
                 for j in (i+1):i1
-                    c = dot(view(M, i0:i-1, j), view(M, i0:i-1, i))
-                    M[i, j] -= c
-                    M[j, i] = zero(T)
+                    M[i, j] /= m_ii
                 end
             end
 
-            for j in (i+1):i1
-                M[i, j] /= m_ii
+            if i1 < ii1
+                ldiv!(UpperTriangular(view(M, i0:i1, i0:i1))',
+                    view(M, i0:i1, (i1+1):ii1))
+                mul!(view(M, (i1+1):ii1, (i1+1):ii1),
+                    transpose(view(M, i0:i1, (i1+1):ii1)),
+                    view(M, i0:i1, (i1+1):ii1),
+                    -one(T), one(T))
             end
         end
 
-        if i1 < n
-            ldiv!(UpperTriangular(view(M, i0:i1, i0:i1))',
-                view(M, i0:i1, (i1+1):n))
-            BLAS.syrk!('U', 'T', -one(T),
-                view(M, i0:i1, (i1+1):n),
-                one(T),
-                view(M, (i1+1):n, (i1+1):n))
-
+        if ii1 < n
+            ldiv!(UpperTriangular(view(M, ii0:ii1, ii0:ii1))',
+                view(M, ii0:ii1, (ii1+1):n))
+            mul!(view(M, (ii1+1):n, (ii1+1):n),
+                transpose(view(M, ii0:ii1, (ii1+1):n)),
+                view(M, ii0:ii1, (ii1+1):n),
+                -one(T), one(T))
         end
     end
 
@@ -225,7 +237,7 @@ end
 
 
 
-function cholesky_rowmax!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=def_c_bsize(length(b))) where {T<:AbstractFloat}
+function cholesky_rowmax!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=2^7, block_size2::Int=2^9) where {T<:AbstractFloat}
     n = size(M, 1)
     perm = collect(1:n)
     rank = n
@@ -255,87 +267,104 @@ function cholesky_rowmax!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block
         end
     end
 
-    @inbounds for i0 in 1:block_size:n
-        i1 = min(n, i0 + block_size - 1)
+    @inbounds for ii0 in 1:block_size2:n
+        ii1 = min(n, ii0 + block_size2 - 1)
 
-        for k in i0:n
-            d_vec[k] = zero(T)
-        end
+        for i0 in ii0:block_size:ii1
+            i1 = min(ii1, i0 + block_size - 1)
 
-        for i in i0:i1
-            i_m = i
-            m_ii = M[i, i] - d_vec[i]
-
-            for k in i:n
-                m_kk = M[k, k] - d_vec[k]
-
-                if m_kk > m_ii
-                    m_ii = m_kk
-                    i_m = k
-                end
+            for k in i0:ii1
+                d_vec[k] = zero(T)
             end
 
+            for i in i0:i1
+                i_m = i
+                m_ii = M[i, i] - d_vec[i]
+
+                for k in i:ii1
+                    m_kk = M[k, k] - d_vec[k]
+
+                    if m_kk > m_ii
+                        m_ii = m_kk
+                        i_m = k
+                    end
+                end
 
 
-            if m_ii > 0
-                m_ii = sqrt(m_ii)
-            else
-                rank = i - 1
+
+                if m_ii > 0
+                    m_ii = sqrt(m_ii)
+                else
+                    rank = i - 1
+                    break
+                end
+
+                if i_m != i
+                    perm[i], perm[i_m] = perm[i_m], perm[i]
+                    d_vec[i_m], d_vec[i] = d_vec[i], d_vec[i_m]
+
+
+                    for k in i0:n
+                        M[i, k], M[i_m, k] = M[i_m, k], M[i, k]
+                    end
+                    for k in 1:n
+                        M[k, i], M[k, i_m] = M[k, i_m], M[k, i]
+                    end
+                end
+
+
+                M[i, i] = m_ii
+
+
+                if i == i0
+                    for j in (i+1):ii1
+                        m_ij = M[i, j] / m_ii
+                        M[i, j] = m_ij
+                        M[j, i] = m_ij
+                        d_vec[j] += m_ij^2
+                    end
+                elseif (i < ii1)
+                    mul!(
+                        view(M, (i+1):ii1, i),
+                        view(M, (i+1):ii1, i0:(i-1)),
+                        view(M, i0:(i-1), i),
+                        -one(T), one(T)
+                    )
+
+                    for j in (i+1):ii1
+                        m_ij = M[j, i]
+                        m_ij /= m_ii
+                        M[i, j] = m_ij
+                        M[j, i] = m_ij
+                        d_vec[j] += m_ij^2
+                    end
+                end
+
+            end
+
+            if rank < n
                 break
             end
 
-            if i_m != i
-                perm[i], perm[i_m] = perm[i_m], perm[i]
-                d_vec[i_m], d_vec[i] = d_vec[i], d_vec[i_m]
-
-
-                for k in i0:n
-                    M[i, k], M[i_m, k] = M[i_m, k], M[i, k]
-                end
-                for k in 1:n
-                    M[k, i], M[k, i_m] = M[k, i_m], M[k, i]
-                end
+            if i1 < ii1
+                mul!(view(M, (i1+1):ii1, (i1+1):ii1),
+                    view(M, (i1+1):ii1, i0:i1),
+                    view(M, i0:i1, (i1+1):ii1), -one(T), one(T))
             end
-
-
-            M[i, i] = m_ii
-
-
-            if i == i0
-                for j in (i+1):n
-                    m_ij = M[i, j] / m_ii
-                    M[i, j] = m_ij
-                    M[j, i] = m_ij
-                    d_vec[j] += m_ij^2
-                end
-            elseif (i < n)
-                mul!(
-                    view(M, (i+1):n, i),
-                    view(M, (i+1):n, i0:(i-1)),
-                    view(M, i0:(i-1), i),
-                    -one(T), one(T)
-                )
-
-                for j in (i+1):n
-                    m_ij = M[j, i]
-                    m_ij /= m_ii
-                    M[i, j] = m_ij
-                    M[j, i] = m_ij
-                    d_vec[j] += m_ij^2
-                end
-            end
-
         end
 
-
-
-        if (rank < n) || (i1 == n)
+        if rank < n
             break
         end
 
-        mul!(view(M, (i1+1):n, (i1+1):n),
-            view(M, (i1+1):n, i0:i1),
-            view(M, i0:i1, (i1+1):n), -one(T), one(T))
+        if ii1 < n
+            ldiv!(UpperTriangular(view(M, ii0:ii1, ii0:ii1))',
+                view(M, ii0:ii1, (ii1+1):n))
+            mul!(view(M, (ii1+1):n, (ii1+1):n),
+                transpose(view(M, ii0:ii1, (ii1+1):n)),
+                view(M, ii0:ii1, (ii1+1):n),
+                -one(T), one(T))
+        end
     end
 
     return CholeskyGenz(M, perm, rank, a, b, block_size, :row_max, scale_vec)
@@ -353,7 +382,7 @@ end
 
 
 
-function cholesky_genz!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=def_c_bsize(length(b))) where {T<:AbstractFloat}
+function cholesky_genz!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_size::Int=2^7, block_size2::Int=2^9) where {T<:AbstractFloat}
     c2 = T(1.0 / sqrt(2.0))
     # Precompute factor: 2 / sqrt(2π)
     is2pi = 2.0 / sqrt(2 * π)
@@ -390,96 +419,115 @@ function cholesky_genz!(M::StridedMatrix{T}, a::Vector{T}, b::Vector{T}, block_s
     order_vec = zeros(T, n)
     y_i = zero(T)
 
-    @inbounds for i0 in 1:block_size:n
-        i1 = min(n, i0 + block_size - 1)
+    @inbounds for ii0 in 1:block_size2:n
+        ii1 = min(n, ii0 + block_size2 - 1)
 
-        for k in i0:n
-            d_vec[k] = zero(T)
-        end
+        for i0 in ii0:block_size:ii1
+            i1 = min(ii1, i0 + block_size - 1)
 
-        for i in i0:i1
-
-            @turbo for k in i:n
-                m_kk = M[k, k] - d_vec[k]
-
-                # Ensure non-negative before sqrt (standard Cholesky safety)
-                m_kk = m_kk < 0 ? zero(T) : sqrt(m_kk)
-
-                a_k = (a[k] - s_vec[k]) / m_kk * c2
-                b_k = (b[k] - s_vec[k]) / m_kk * c2
-
-                # diff_k here is approx 2 * ProbabilityMass
-                diff_k = erf(b_k) - erf(a_k)
-                order_vec[k] = diff_k
+            for k in i0:ii1
+                d_vec[k] = zero(T)
             end
 
-            i_m = argmin(view(order_vec, i:n)) + i - 1
-            d_ii = order_vec[i_m]
-            m_ii = M[i_m, i_m] - d_vec[i_m]
+            for i in i0:i1
 
-            if i_m != i
-                perm[i], perm[i_m] = perm[i_m], perm[i]
-                d_vec[i_m], d_vec[i] = d_vec[i], d_vec[i_m]
-                s_vec[i_m], s_vec[i] = s_vec[i], s_vec[i_m]
-                a[i_m], a[i] = a[i], a[i_m]
-                b[i_m], b[i] = b[i], b[i_m]
+                @turbo for k in i:ii1
+                    m_kk = M[k, k] - d_vec[k]
 
-                for k in i0:n
-                    M[i, k], M[i_m, k] = M[i_m, k], M[i, k]
+                    # Ensure non-negative before sqrt (standard Cholesky safety)
+                    m_kk = m_kk < 0 ? zero(T) : sqrt(m_kk)
+
+                    a_k = (a[k] - s_vec[k]) / m_kk * c2
+                    b_k = (b[k] - s_vec[k]) / m_kk * c2
+
+                    # diff_k here is approx 2 * ProbabilityMass
+                    diff_k = erf(b_k) - erf(a_k)
+                    order_vec[k] = diff_k
                 end
-                for k in 1:n
-                    M[k, i], M[k, i_m] = M[k, i_m], M[k, i]
+
+                i_m = argmin(view(order_vec, i:ii1)) + i - 1
+                d_ii = order_vec[i_m]
+                m_ii = M[i_m, i_m] - d_vec[i_m]
+
+                if i_m != i
+                    perm[i], perm[i_m] = perm[i_m], perm[i]
+                    d_vec[i_m], d_vec[i] = d_vec[i], d_vec[i_m]
+                    s_vec[i_m], s_vec[i] = s_vec[i], s_vec[i_m]
+                    a[i_m], a[i] = a[i], a[i_m]
+                    b[i_m], b[i] = b[i], b[i_m]
+
+                    for k in i0:n
+                        M[i, k], M[i_m, k] = M[i_m, k], M[i, k]
+                    end
+                    for k in 1:n
+                        M[k, i], M[k, i_m] = M[k, i_m], M[k, i]
+                    end
+                end
+
+                if m_ii > eps0
+                    m_ii = sqrt(m_ii)
+                else
+                    rank = i - 1
+                    break
+                end
+
+                M[i, i] = m_ii
+
+                a_norm = (a[i] - s_vec[i]) / m_ii
+                b_norm = (b[i] - s_vec[i]) / m_ii
+
+                y_i = (exp(-a_norm^2 / 2) - exp(-b_norm^2 / 2)) * is2pi / d_ii
+
+                if i == i0
+                    for j in (i+1):ii1
+                        m_ij = M[i, j] / m_ii
+                        M[i, j] = m_ij
+                        M[j, i] = m_ij
+                        d_vec[j] += m_ij^2
+                        s_vec[j] += y_i * m_ij
+                    end
+                elseif (i < ii1)
+                    mul!(
+                        view(M, (i+1):ii1, i),
+                        view(M, (i+1):ii1, i0:(i-1)),
+                        view(M, i0:(i-1), i),
+                        -one(T), one(T)
+                    )
+
+                    for j in (i+1):ii1
+                        m_ij = M[j, i]
+                        m_ij /= m_ii
+                        M[i, j] = m_ij
+                        M[j, i] = m_ij
+                        d_vec[j] += m_ij^2
+                        s_vec[j] += y_i * m_ij
+                    end
                 end
             end
 
-            if m_ii > eps0
-                m_ii = sqrt(m_ii)
-            else
-                rank = i - 1
+            if rank < n
                 break
             end
 
-            M[i, i] = m_ii
-
-            a_norm = (a[i] - s_vec[i]) / m_ii
-            b_norm = (b[i] - s_vec[i]) / m_ii
-
-            y_i = (exp(-a_norm^2 / 2) - exp(-b_norm^2 / 2)) * is2pi / d_ii
-
-            if i == i0
-                for j in (i+1):n
-                    m_ij = M[i, j] / m_ii
-                    M[i, j] = m_ij
-                    M[j, i] = m_ij
-                    d_vec[j] += m_ij^2
-                    s_vec[j] += y_i * m_ij
-                end
-            elseif (i < n)
-                mul!(
-                    view(M, (i+1):n, i),
-                    view(M, (i+1):n, i0:(i-1)),
-                    view(M, i0:(i-1), i),
-                    -one(T), one(T)
-                )
-
-                for j in (i+1):n
-                    m_ij = M[j, i]
-                    m_ij /= m_ii
-                    M[i, j] = m_ij
-                    M[j, i] = m_ij
-                    d_vec[j] += m_ij^2
-                    s_vec[j] += y_i * m_ij
-                end
+            if i1 < ii1
+                mul!(view(M, (i1+1):ii1, (i1+1):ii1),
+                    view(M, (i1+1):ii1, i0:i1),
+                    view(M, i0:i1, (i1+1):ii1), -one(T), one(T))
             end
         end
 
-        if (rank < n) || (i1 == n)
+        if rank < n
             break
         end
 
-        mul!(view(M, (i1+1):n, (i1+1):n),
-            view(M, (i1+1):n, i0:i1),
-            view(M, i0:i1, (i1+1):n), -one(T), one(T))
+        if ii1 < n
+            ldiv!(UpperTriangular(view(M, ii0:ii1, ii0:ii1))',
+                view(M, ii0:ii1, (ii1+1):n))
+            mul!(view(M, (ii1+1):n, (ii1+1):n),
+                transpose(view(M, ii0:ii1, (ii1+1):n)),
+                view(M, ii0:ii1, (ii1+1):n),
+                -one(T), one(T))
+        end
     end
 
     return CholeskyGenz(M, perm, rank, a, b, block_size, :genz, scale_vec)

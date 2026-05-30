@@ -1123,7 +1123,7 @@ end
 
 ## Integration
 
-function qmc_pnorm!(D::Union{QMCData{T},QMCDataLowRank{T},QMCData_TB{T},QMCData_TBLowRank{T},QMCDataSparse{T}}, use_AppleBLAS=true) where T
+function qmc_pnorm!(D::Union{QMCData{T},QMCDataLowRank{T},QMCData_TB{T},QMCData_TBLowRank{T},QMCDataSparse{T}}, use_AppleBLAS=!use_MKL_instead_of_ACC) where T
     n = length(D.b)
     gen = D.qmc_gen
 
@@ -1156,6 +1156,10 @@ function qmc_pnorm!(D::Union{QMCData{T},QMCDataLowRank{T},QMCData_TB{T},QMCData_
     max_abs_err = D.qmc_opts.max_abs_err
 
     if ((n_pts >= max_pts) | (err_acc < max_abs_err))
+        if !use_AppleBLAS && size(D.C.U, 1)^2 * D.qmc_opts.m > 2^12
+            BLAS.set_num_threads(b_t)
+        end
+
         return result, err_acc, n_pts
     end
 

@@ -20,37 +20,23 @@ sim_reps_big = Int(simcfg("simulation_comparison", "sim_reps_big", 100))
 using Distributions
 
 
-# Generate a random symmetric positive definite matrix
-function random_spd(n::Int; jitter::Float64=1.0)
-    A = randn(n, n)
-    Σ = A * A'
-    Σ += jitter * n * I # keep it well conditioned
-    return Matrix(Symmetric(Σ))
-end
+
+
+
+
+
 
 
 # Run pnorm qmc_pnorm
-function run_pnorm(Σ, a, b; max_pts=2^10, seed=0)
+function run_pnorm(Σ, a, b; max_pts::Int=2^10, seed=0)
     rng = MersenneTwister(seed)
-    b_t = BLAS.get_num_threads()
-    BLAS.set_num_threads(1)
     n = length(a)
-    opts = QMC_opts(Float64; chol_block_size=2^6, m=2^11, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
+    opts = use_MKL_instead_of_ACC ? QMC_opts(Float64; chol_block_size=2^6, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
+           QMC_opts(Float64; chol_block_size=2^6, m=2^11, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
 
 
     t = @elapsed (val, err, _) = qmc_pnorm!(QMCData((Σ), (a), (b), opts, rng, :Richtmyer))
 
-    BLAS.set_num_threads(b_t)
-    return val, err, t
-end
-
-
-
-function run_pnorm_TB(Σ, a, b; max_pts=2^10, seed=0)
-    rng = MersenneTwister(seed)
-    opts = QMC_opts(m=2^11, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6)
-
-    t = @elapsed (val, err, _) = qmc_pnorm!(QMCData_TB((Σ), (a), (b), opts, rng, :Richtmyer))
     return val, err, t
 end
 
