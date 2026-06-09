@@ -119,7 +119,7 @@ function run_simulation(;
     # Pre-generate test case to ensure consistency
 
 
-    Σ = random_spd(n_dim)
+    Σ = rand_spd(n_dim)
     k = quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2)
     a = -sqrt.(diag(Σ)) * k
     b = sqrt.(diag(Σ)) * k
@@ -216,7 +216,7 @@ function run_simulation_big(;
     # Pre-generate test cases to ensure consistency
     R"set.seed(42)"
 
-    Σ = random_spd(n_dim)
+    Σ = rand_spd(n_dim)
     k = quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2)
     a = -sqrt.(diag(Σ)) * k
     b = sqrt.(diag(Σ)) * k

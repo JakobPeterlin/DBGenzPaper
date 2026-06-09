@@ -30,6 +30,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 YFinance = "e4b3b0a2-f9a3-42f3-aabb-32142cceaf77"
 
@@ -42,6 +43,8 @@ FillArrays = "1.16.0"
 MKL = "0.9.1"
 Primes = "0.5.7"
 Sobol = "1.5.0"
+SpecialFunctions = "2.7.1"
+StatsFuns = "1.5.2"
 
 [extras]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
