@@ -33,22 +33,20 @@ function sim_resultpath(parts...)
     return resultpath(path_parts[1:end-1]..., filename)
 end
 
-function _use_package!(pkg::Symbol)
-    @eval Main using $pkg
-    return nothing
-end
-
 function use_accelerated_blas!()
     if use_MKL_instead_of_ACC
-        _use_package!(:MKL)
-        if isdefined(Main.MKL, :MKL_jll) && !Main.MKL.MKL_jll.is_available()
-            error("use_MKL_instead_of_ACC is true, but MKL is not available for this platform.")
-        end
-        if isdefined(Main, :MKL) && isdefined(Main.MKL, :lbt_forward_to_mkl)
-            Main.MKL.lbt_forward_to_mkl()
+        @eval Main begin
+            using MKL, LinearAlgebra
+            BLAS.set_num_threads(56)
+            if isdefined(MKL, :MKL_jll) && !MKL.MKL_jll.is_available()
+                error("use_MKL_instead_of_ACC is true, but MKL is not available for this platform.")
+            end
+            if isdefined(MKL, :lbt_forward_to_mkl)
+                MKL.lbt_forward_to_mkl()
+            end
         end
     else
-        _use_package!(:AppleAccelerate)
+        @eval Main using AppleAccelerate
         LinearAlgebra.BLAS.lbt_forward(APPLE_ACCELERATE_LIB; clear=true, suffix_hint="\x1a\$NEWLAPACK")
         LinearAlgebra.BLAS.lbt_forward(APPLE_ACCELERATE_LIB; clear=false, suffix_hint="\x1a\$NEWLAPACK\$ILP64")
     end

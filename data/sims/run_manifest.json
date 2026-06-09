@@ -1,15 +1,15 @@
 {
-  "timestamp_utc": "2026-06-08T04:03:18.962",
+  "timestamp_utc": "2026-06-09T20:34:20.970",
   "project": "DBGenzPaper",
-  "config_path": "scripts/parameters/paper.toml",
+  "config_path": "/home/jakob/DBGenzPaper/scripts/parameters/default.toml",
   "targets": [
-    "simulation_comparison"
+    "simulation_mul!"
   ],
   "results": [
     {
-      "script": "simulations/simulation_comparison.jl",
-      "target": "simulation_comparison",
-      "elapsed_seconds": 246302.643797167
+      "script": "simulations/simulation_mul!.jl",
+      "target": "simulation_mul!",
+      "elapsed_seconds": 98.96424756
     }
   ]
 }

@@ -1,6 +1,5 @@
 
-include(joinpath(@__DIR__, "setup.jl"))
-using DBGenzPaper
+include("simulations_functions.jl")
 
 using Random
 using LinearAlgebra

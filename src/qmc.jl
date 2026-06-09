@@ -1,6 +1,8 @@
 using Sobol, Random, LinearAlgebra, LoopVectorization, SparseArrays
 
 
+using Polyester
+
 include("cholesky.jl")
 include("qmc_generators.jl")
 
@@ -262,7 +264,7 @@ function qmc_loop!(D::QMCData{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T,G}
         sum_p_threads = D.sum_p_threads
         fill!(sum_p_threads, zero(T))
 
-        Threads.@threads for j1 in 1:opts.block_size_j:opts.m
+        @batch for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
             r_j = j1:j2
             i_t = mod(Threads.threadid(), Threads.nthreads()) + 1
@@ -430,7 +432,7 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
         sum_p_threads = D.sum_p_threads
         fill!(sum_p_threads, zero(T))
 
-        Threads.@threads for j1 in 1:opts.block_size_j:opts.m
+        @batch for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
             r_j = j1:j2
             i_t = mod(Threads.threadid(), Threads.nthreads()) + 1
