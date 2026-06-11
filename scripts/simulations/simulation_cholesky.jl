@@ -11,7 +11,9 @@ function cholesky_blas_pivoted(Σ)
     Σ_copy = copy(Σ)
     return @elapsed cholesky(Σ_copy, RowMaximum())
 end
-
+const size1c = use_MKL_instead_of_ACC ? 2^8 : 2^5
+const size1 = use_MKL_instead_of_ACC ? 2^9 : 2^5
+const size2 = use_MKL_instead_of_ACC ? 2^9 : 2^9
 
 
 
@@ -22,7 +24,7 @@ function chol_classic(Σ)
     Σ_copy = copy(Σ)
     a = -ones(size(Σ, 1))
     b = ones(size(Σ, 1))
-    return @elapsed cholesky_classic!(Σ_copy, a, b, 2^5)
+    return @elapsed cholesky_classic!(Σ_copy, a, b, size1c, size2)
 end
 
 function chol_genz(Σ)
@@ -30,14 +32,14 @@ function chol_genz(Σ)
     a = -ones(size(Σ, 1))
 
     b = ones(size(Σ, 1))
-    return @elapsed cholesky_genz!(Σ_copy, a, b)
+    return @elapsed cholesky_genz!(Σ_copy, a, b, size1, size2)
 end
 
 function chol_rowmax(Σ)
     Σ_copy = copy(Σ)
     a = -ones(size(Σ, 1))
     b = ones(size(Σ, 1))
-    return @elapsed cholesky_rowmax!(Σ_copy, a, b)
+    return @elapsed cholesky_rowmax!(Σ_copy, a, b, size1, size2)
 end
 
 
@@ -106,6 +108,7 @@ end
 ns = [2^4, 2^5, 2^6, 2^7, 2^8, 2^9, 2^10, 2^11, 2^12]
 n_reps = simcfg("simulation_cholesky", "n_reps", 1000)
 
+
 ##
 
 
@@ -132,3 +135,4 @@ CSV.write(sim_resultpath("results_$(ACCELERATED_BLAS_TAG).csv"), results_acceler
 
 
 
+<

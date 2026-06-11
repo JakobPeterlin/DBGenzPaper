@@ -30,8 +30,9 @@ using Distributions
 function run_pnorm(Σ, a, b; max_pts::Int=2^10, seed=0)
     rng = MersenneTwister(seed)
     n = length(a)
-    opts = use_MKL_instead_of_ACC ? QMC_opts(Float64; chol_block_size=2^6, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
-           QMC_opts(Float64; chol_block_size=2^6, m=2^11, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
+    opts = use_MKL_instead_of_ACC ? QMC_opts(Float64;
+        chol_block_size=2^9, chol_block_size2=2^9, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
+           QMC_opts(Float64; chol_block_size=2^6, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
 
 
     t = @elapsed (val, err, _) = qmc_pnorm!(QMCData((Σ), (a), (b), opts, rng, :Richtmyer))

@@ -12,6 +12,7 @@ using MvNormalCDF
 
 struct QMCOpts{T}
     chol_block_size::Int
+    chol_block_size2::Int
     m::Int
     block_size_i::Int
     block_size_i2::Int
@@ -83,6 +84,7 @@ end
 
 function QMC_opts(T=Float64;
     chol_block_size::Int=2^6,
+    chol_block_size2::Int=2^9,
     m::Integer=10^4,
     block_size_i=2^6,
     block_size_j::Int=2^6,
@@ -93,7 +95,7 @@ function QMC_opts(T=Float64;
     max_pts::Int=10^4,
     max_abs_err=10^(-6))
 
-    return QMCOpts{T}(chol_block_size, m, block_size_i, block_size_i2, block_size_j, n_blocks, n_reps, n_bits, max_pts, max_abs_err)
+    return QMCOpts{T}(chol_block_size, chol_block_size2, m, block_size_i, block_size_i2, block_size_j, n_blocks, n_reps, n_bits, max_pts, max_abs_err)
 end
 
 
@@ -123,7 +125,7 @@ function QMCData(C::Matrix{T0},
             block_size_i2 = n - 1
         end
 
-        opts = QMCOpts{T}(opts.chol_block_size, m, block_size_i, block_size_i2, block_size_j, opts.n_blocks, opts.n_reps, opts.n_bits, opts.max_pts, opts.max_abs_err)
+        opts = QMCOpts{T}(opts.chol_block_size, opts.chol_block_size2, m, block_size_i, block_size_i2, block_size_j, opts.n_blocks, opts.n_reps, opts.n_bits, opts.max_pts, opts.max_abs_err)
     end
 
 
@@ -140,9 +142,9 @@ function QMCData(C::Matrix{T0},
     qmc_reps = zeros(T, n_reps)
     sum_p_threads = zeros(T, n_blocks)
     chol = if T0 == T
-        cholesky_genz!(copy(C), copy(a), copy(b), opts.chol_block_size)
+        cholesky_genz!(copy(C), copy(a), copy(b), opts.chol_block_size, opts.chol_block_size2)
     else
-        cholesky_genz!(convert.(T, C), convert.(T, a), convert.(T, b), opts.chol_block_size)
+        cholesky_genz!(convert.(T, C), convert.(T, a), convert.(T, b), opts.chol_block_size, opts.chol_block_size2)
     end
 
     if chol.rank != n
@@ -183,14 +185,14 @@ function QMCDataSparse(C::Matrix{T0},
     n = size(C, 1)
 
     if n - 1 < opts.block_size_i
-        opts = QMCOpts{T}(opts.chol_block_size, m, n, opts.block_size_i2, opts.block_size_j, opts.n_blocks, opts.n_reps, opts.n_bits, opts.max_pts, opts.max_abs_err)
+        opts = QMCOpts{T}(opts.chol_block_size, opts.chol_block_size2, m, n, opts.block_size_i2, opts.block_size_j, opts.n_blocks, opts.n_reps, opts.n_bits, opts.max_pts, opts.max_abs_err)
         block_size_i = n - 1
     end
 
     # Ensure we have enough per-thread buffers for the threaded loop.
     n_threads = Threads.nthreads()
     n_blocks = max(opts.n_blocks, n_threads)
-    opts_use = (n_blocks == opts.n_blocks) ? opts : QMCOpts{T}(m, block_size_i, opts.block_size_i2, block_size_j, n_blocks, n_reps, n_bits, opts.max_pts, opts.max_abs_err)
+    opts_use = (n_blocks == opts.n_blocks) ? opts : QMCOpts{T}(opts.chol_block_size, opts.chol_block_size2, m, block_size_i, opts.block_size_i2, block_size_j, n_blocks, n_reps, n_bits, opts.max_pts, opts.max_abs_err)
 
     qmc_generator = if qmc_type == :Sobol
         SobolQMC(T, n - 1, m, n_reps, rng; n_bits=n_bits, skip0=(2 * m - 1))
@@ -206,9 +208,9 @@ function QMCDataSparse(C::Matrix{T0},
     qmc_reps = zeros(T, n_reps)
     sum_p_threads = zeros(T, n_blocks)
     chol = if T0 == T
-        cholesky_classic!(copy(C), copy(a), copy(b), opts.chol_block_size)
+        cholesky_classic!(copy(C), copy(a), copy(b), opts.chol_block_size, opts.chol_block_size2)
     else
-        cholesky_classic!(convert.(T, C), convert.(T, a), convert.(T, b), opts.chol_block_size)
+        cholesky_classic!(convert.(T, C), convert.(T, a), convert.(T, b), opts.chol_block_size, opts.chol_block_size2)
     end
 
     U_S = sparse(triu(chol.U, 1))

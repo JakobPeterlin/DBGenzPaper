@@ -3,7 +3,10 @@ using Distributions: Normal, cdf, quantile
 using LoopVectorization: @turbo
 using SpecialFunctions: erf, erfc, erfinv
 using DataFrames: DataFrame
+using CSV
 using StatsBase
+
+include(joinpath(@__DIR__, "..", "simulations", "setup.jl"))
 
 function test_normal_cdf_accuracy(n::Integer; T=Float64, rng=Random.default_rng())
     x = randn(rng, T, n) * 2.0
@@ -115,12 +118,26 @@ end
 
 
 ##
-Random.seed!(42)
 
-xs = -2.0 * rand(10^4)
-y1 = cdf.(Normal(), xs)
-y2 = 0.5 * (1.0 .+ erf.(xs * sqrt(0.5)))
 
-xsb = BigFloat.(xs)
-y1b = cdf.(Normal(), xsb)
-y2b = 0.5 * (1.0 .+ erf.(xsb * sqrt(BigFloat(0.5))))
+function run_erf_accuracy_tests()
+    results = DataFrame[]
+
+    for T in (Float64, Float32)
+        df = repeat_acc_tests(2^5, 10^5, T)
+
+        for col in (:max_max_error, :mean_max_error, :mean_rmse)
+            df[!, col] ./= eps(T)
+        end
+
+        df[!, :Precision] = fill(string(T), size(df, 1))
+        push!(results, df)
+    end
+
+    erf_acc = vcat(results...)
+    CSV.write(sim_resultpath("erf_acc.csv"), erf_acc)
+
+    return erf_acc
+end
+
+erf_acc = run_erf_accuracy_tests()
