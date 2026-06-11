@@ -43,7 +43,11 @@ b = sqrt.(diag(Σ)) * k
 
 
 
+<<<<<<< HEAD
 opts = QMC_opts(Float64; m=max_pts, max_pts=max_pts, chol_block_size=2^9, chol_block_size2=2^9, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6)
+=======
+opts = QMC_opts(Float64; chol_block_size=2^6, m=2^max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
+>>>>>>> cd0725f (Simulations etc. on M2U.)
 
 
 #@time data = QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer);
