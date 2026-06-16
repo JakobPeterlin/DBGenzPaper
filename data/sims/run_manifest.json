@@ -1,15 +1,15 @@
 {
-  "timestamp_utc": "2026-06-11T00:36:47.997",
+  "timestamp_utc": "2026-06-16T11:28:13.210",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
-    "simulation_cholesky"
+    "simulation_comparison"
   ],
   "results": [
     {
-      "script": "simulations/simulation_cholesky.jl",
-      "target": "simulation_cholesky",
-      "elapsed_seconds": 11219.237426
+      "script": "simulations/simulation_comparison.jl",
+      "target": "simulation_comparison",
+      "elapsed_seconds": 344543.1234613
     }
   ]
 }
