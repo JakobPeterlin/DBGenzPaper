@@ -68,6 +68,7 @@ struct QMCDataSparse{T,G<:QMCGenrator{T}}
     sum_p_threads::Vector{T}
     qmc_opts::QMCOpts{T}
     U_S::SparseMatrixCSC{T,Int}
+    nz_ranges::Vector{UnitRange{Int}}
 end
 
 
@@ -213,9 +214,22 @@ function QMCDataSparse(C::Matrix{T0},
         cholesky_classic!(convert.(T, C), convert.(T, a), convert.(T, b), opts.chol_block_size, opts.chol_block_size2)
     end
 
-    U_S = sparse(triu(chol.U, 1))
+    U = chol.U
 
-    return QMCDataSparse{T,typeof(qmc_generator)}(chol, chol.a, chol.b, qmc_generator, Ys, sub_mats, c_vecs, dc_vecs, p_vecs, qmc_reps, sum_p_threads, opts_use, U_S)
+    for i in eachindex(U)
+        if U[i] < eps(T) / 9
+            U[i] = zero(T)
+        end
+    end
+
+    U_S = sparse(triu(U, 1))
+    nz_ranges = Vector{UnitRange{Int}}(undef, n)
+
+    for i in 1:n
+        nz_ranges[i] = U_S.colptr[i]:(U_S.colptr[i+1]-1)
+    end
+
+    return QMCDataSparse{T,typeof(qmc_generator)}(chol, chol.a, chol.b, qmc_generator, Ys, sub_mats, c_vecs, dc_vecs, p_vecs, qmc_reps, sum_p_threads, opts_use, U_S, nz_ranges)
 end
 
 
@@ -434,7 +448,7 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
         sum_p_threads = D.sum_p_threads
         fill!(sum_p_threads, zero(T))
 
-        @batch for j1 in 1:opts.block_size_j:opts.m
+        Threads.@threads for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
             r_j = j1:j2
             i_t = mod(Threads.threadid(), Threads.nthreads()) + 1
@@ -466,7 +480,9 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
                     #   s_j = view(Y_j, :, 1:i) * U_S[1:i, i+1]
                     # but without calling mul! inside the threaded region.
                     fill!(s_j, zero(T))
-                    @turbo for p_u in nzrange(U_S, i + 1)
+                    nz_range_i = D.nz_ranges[i+1]
+
+                    @turbo for p_u in nz_range_i
                         i_u = U_S.rowval[p_u] # 1 <= i_u <= i (strict upper-triangular)
                         v_u = U_S.nzval[p_u]
                         for i_b in 1:jlen

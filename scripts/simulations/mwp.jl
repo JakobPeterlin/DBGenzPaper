@@ -30,28 +30,79 @@ using Distributions
 
 
 
-
-n_dim = 2^4
+T = Float64
+n_dim = 2^12
 max_pts = 2^11 * 10
 seed = 1
 
 
-Σ = rand_spd(n_dim)
-k = quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2)
+Σ = (mattern_cov1(n_dim))
+#Σ = (rand_spd(n_dim))
+k = (quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2))
 a = -sqrt.(diag(Σ)) * k
-b = sqrt.(diag(Σ)) * k
+b = (sqrt.(diag(Σ))) * k
+
+Σ2 = copy(Σ)
 
 
 
-<<<<<<< HEAD
-opts = QMC_opts(Float64; m=max_pts, max_pts=max_pts, chol_block_size=2^9, chol_block_size2=2^9, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6)
-=======
-opts = QMC_opts(Float64; chol_block_size=2^6, m=2^max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
->>>>>>> cd0725f (Simulations etc. on M2U.)
 
 
-#@time data = QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer);
 
-#@time val, err, _ = qmc_pnorm!(data);
+opts = QMC_opts(T; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
 
-@time val, err, t = qmc_pnorm!(QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer););
+
+
+opts_s = QMC_opts(T; m=max_pts, max_pts=max_pts, chol_block_size=2^8, chol_block_size2=2^9, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^10, block_size_j=2^6)
+
+
+
+@time data = QMCDataSparse(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer);
+
+
+
+
+
+@time val, err, t = qmc_pnorm!(QMCDataSparse(Σ2, a, b, opts_s, MersenneTwister(seed), :Richtmyer););
+
+
+
+
+
+
+
+
+
+
+
+
+
+##
+l
+@time z1, e1, t = qmc_pnorm!(QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer););
+
+seed += 1
+
+
+@time ps = [qmc_pnorm!(QMCData(Σ, a, b, opts, MersenneTwister(seed + i), :Richtmyer);) for i in 1:10]
+
+@time ss = [qmc_pnorm!(QMCDataSparse(Σ, a, b, opts_s, MersenneTwister(seed + i), :Richtmyer);) for i in 1:10]
+
+
+@time tls = [run_tlrmvnmvt(a, b, Σ, 2^11 * 6) for i in 1:10]
+
+v_p = [x[1] for x in ps]
+v_t = [x[1] for x in tls]
+v_s = [x[1] for x in ss]
+
+
+
+
+##
+
+
+
+
+
+
+

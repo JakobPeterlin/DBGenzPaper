@@ -5,6 +5,7 @@ using LinearAlgebra, OpenBLAS_jll, Statistics, DataFrames, CSV, Random, Distribu
 use_accelerated_blas!()
 
 import ProgressMeter: @showprogress
+using SpecialFunctions: besselk, gamma
 
 
 
@@ -44,3 +45,27 @@ end
 sd(v::Vector{T}) where T = sqrt(var(v))
 
 
+
+
+
+function mattern_cov(n; ν=1.5, dist=1.0, σ²=1.0)
+    Σ = Matrix{Float64}(undef, n, n)
+    c = σ² * 2^(1 - ν) / gamma(ν)
+
+    for j in 1:n
+        Σ[j, j] = σ²
+
+        for i in (j+1):n
+            z = sqrt(2ν) * (i - j) / dist
+            v = c * z^ν * besselk(ν, z)
+            Σ[i, j] = v
+            Σ[j, i] = v
+        end
+    end
+
+    return Σ
+end
+
+mattern_cov0(n) = mattern_cov(n; ν=1.5, dist=n * 0.01) # 1 and 0.86 nnz
+mattern_cov1(n) = mattern_cov(n; ν=1.5, dist=n * 0.001) # 0.64 and 0.12 nnz
+mattern_cov2(n) = mattern_cov(n; ν=1.5, dist=n * 0.0001) # 0.08 and 0.01 nnz

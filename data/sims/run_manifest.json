@@ -1,5 +1,6 @@
 {
   "timestamp_utc": "2026-06-16T11:28:13.210",
+  "timestamp_utc": "2026-06-14T07:38:52.451",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
@@ -10,6 +11,7 @@
       "script": "simulations/simulation_comparison.jl",
       "target": "simulation_comparison",
       "elapsed_seconds": 344543.1234613
+      "elapsed_seconds": 246400.03031925
     }
   ]
 }

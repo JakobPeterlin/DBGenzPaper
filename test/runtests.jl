@@ -35,6 +35,29 @@ end
     @test maximum(abs, C_test[p, p] - U' * U) < 1e-10
 end
 
+@testset "cholesky_classic!" begin
+    Random.seed!(102)
+    n = 100
+    A = rand(n, n)
+    C = A * A' + 100.0 * I
+    a = -ones(n)
+    b = ones(n)
+
+    C_test = copy(C)
+    d_test = [sqrt(C_test[i, i]) for i in 1:n]
+    for i in 1:n
+        C_test[:, i] /= d_test[i]
+        C_test[i, :] /= d_test[i]
+    end
+
+    for block_size in (8, 16, 32, 64)
+        F = cholesky_classic!(copy(C), copy(a), copy(b), block_size, block_size, block_size, block_size)
+        U = UpperTriangular(F.U)
+
+        @test maximum(abs, C_test - U' * U) < 1e-10
+    end
+end
+
 @testset "adapt_low_rank!" begin
     n = 30
     rank = 20
