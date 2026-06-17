@@ -9,11 +9,29 @@ using RCall
 using CSV
 
 
-function run_pnorm(Σ, a, b; max_pts=2^10, seed=0)
+
+function run_pnorm(Σ, a, b; max_pts::Int=2^10, seed=0)
+    rng = MersenneTwister(seed)
+
+    opts = use_MKL_instead_of_ACC ? QMC_opts(Float64;
+        chol_block_size=2^9, chol_block_size2=2^9, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
+           QMC_opts(Float64; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^8)
+
+
+    t = @elapsed (val, err, _) = qmc_pnorm!(QMCData((Σ), (a), (b), opts, rng, :Richtmyer))
+
+    return val, err, t
+end
+
+
+
+
+
+function run_pnorm32(Σ, a, b; max_pts=2^10, seed=0)
     rng = MersenneTwister(seed)
     opts = use_MKL_instead_of_ACC ? QMC_opts(Float32;
         chol_block_size=2^9, chol_block_size2=2^9, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
-           QMC_opts(Float32; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^7)
+           QMC_opts(Float32; chol_block_size=2^6, chol_block_size2=2^8, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^10, block_size_i2=2^6, block_size_j=2^8)
 
 
     t = @elapsed (val, err, _) = qmc_pnorm!(QMCData(Σ, a, b, opts, rng, :Richtmyer))
@@ -21,15 +39,40 @@ function run_pnorm(Σ, a, b; max_pts=2^10, seed=0)
 end
 
 
+
+
+
 function run_pnorm_sparse(Σ, a, b; max_pts=2^10, seed=0)
+    nnz_mul = count(abs.(Σ .> eps(Float64))) / prod(size(Σ)) < 0.1 ? 4 : 1
+
     rng = MersenneTwister(seed)
     opts = use_MKL_instead_of_ACC ? QMC_opts(Float64;
         chol_block_size=2^9, chol_block_size2=2^9, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^6, block_size_i2=2^6, block_size_j=2^6) :
-           QMC_opts(Float64; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^6, block_size_i2=2^6, block_size_j=2^6)
+           QMC_opts(Float64; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^6, block_size_i2=2^6, block_size_j=2^6 * nnz_mul)
 
     t = @elapsed (val, err, _) = qmc_pnorm!(QMCDataSparse(Σ, a, b, opts, rng, :Richtmyer))
     return val, err, t
 end
+
+
+
+
+
+
+
+function run_pnorm_sparse32(Σ, a, b; max_pts=2^10, seed=0)
+    nnz_mul = count(abs.(Σ .> eps(Float64))) / prod(size(Σ)) < 0.1 ? 4 : 1
+    rng = MersenneTwister(seed)
+    opts = use_MKL_instead_of_ACC ? QMC_opts(Float64;
+        chol_block_size=2^9, chol_block_size2=2^9, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^6, block_size_i2=2^6, block_size_j=2^6) :
+           QMC_opts(Float64; chol_block_size=2^5, chol_block_size2=2^7, m=max_pts, max_pts=max_pts, max_abs_err=0.0, block_size_i=2^6, block_size_i2=2^6, block_size_j=2^6 * nnz_mul)
+
+    t = @elapsed (val, err, _) = qmc_pnorm!(QMCDataSparse(Σ, a, b, opts, rng, :Richtmyer))
+    return val, err, t
+end
+
+
+
 
 
 function run_tlrmvnmvt(a, b, Σ, maxpts)
@@ -49,13 +92,13 @@ function run_tlrmvnmvt(a, b, Σ, maxpts)
 end
 
 
-function compare_sparse_methods(; n_dim=1000, n_diag=30, n_reps=20, seed=42, qmc_pts=9600)
+function compare_sparse_methods(; n_dim=1000, n_reps=20, seed=42, qmc_pts=9600)
     Random.seed!(seed)
 
     has_tlr = rcopy(R"requireNamespace('tlrmvnmvt', quietly=TRUE)")
     has_tlr && R"library(tlrmvnmvt)"
 
-    M = fixed_sparse(n_dim, n_diag)
+    M = mattern_cov1(n_dim)
     k = quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2)
     a = -k * sqrt.(diag(M))
     b = k * sqrt.(diag(M))
@@ -75,12 +118,26 @@ function compare_sparse_methods(; n_dim=1000, n_diag=30, n_reps=20, seed=42, qmc
     end
 
     for rep in 1:n_reps
+        val, err, t = run_pnorm32(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
+        push!(results, (rep=rep, method="pnorm32", value=val, time=t, error=missing, est_error=err))
+    end
+
+    for rep in 1:n_reps
         val, err, t = run_pnorm_sparse(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
         push!(results, (rep=rep, method="pnorm_sparse", value=val, time=t, error=missing, est_error=err))
     end
 
+
+    for rep in 1:n_reps
+        val, err, t = run_pnorm_sparse32(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
+        push!(results, (rep=rep, method="pnorm_sparse32", value=val, time=t, error=missing, est_error=err))
+    end
+
+    println("running tlr")
+
     if has_tlr
         for rep in 1:n_reps
+            println("rep $rep out of $n_reps")
             val, err, t = run_tlrmvnmvt(a, b, M, Int(ceil(qmc_pts / 20)))
             push!(results, (rep=rep, method="tlr", value=val, time=t, error=missing, est_error=err))
         end
@@ -104,7 +161,7 @@ function compare_dense_methods(; n_dim=100, n_reps=20, seed=42, qmc_pts=9600)
     has_tlr = rcopy(R"requireNamespace('tlrmvnmvt', quietly=TRUE)")
     has_tlr && R"library(tlrmvnmvt)"
 
-    M = fixed_dense(n_dim)
+    M = mattern_cov2(n_dim)
     k = quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2)
     a = -k * sqrt.(diag(M))
     b = k * sqrt.(diag(M))
@@ -124,12 +181,25 @@ function compare_dense_methods(; n_dim=100, n_reps=20, seed=42, qmc_pts=9600)
     end
 
     for rep in 1:n_reps
+        val, err, t = run_pnorm32(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
+        push!(results, (rep=rep, method="pnorm32", value=val, time=t, error=missing, est_error=err))
+    end
+
+    for rep in 1:n_reps
         val, err, t = run_pnorm_sparse(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
         push!(results, (rep=rep, method="pnorm_sparse", value=val, time=t, error=missing, est_error=err))
     end
 
+    for rep in 1:n_reps
+        val, err, t = run_pnorm_sparse32(M, a, b; max_pts=ceil(Int, qmc_pts / 12), seed=seed + rep)
+        push!(results, (rep=rep, method="pnorm_sparse32", value=val, time=t, error=missing, est_error=err))
+    end
+    println("running tlr")
+
     if has_tlr
         for rep in 1:n_reps
+            println("rep $rep out of $n_reps")
+
             val, err, t = run_tlrmvnmvt(a, b, M, Int(ceil(qmc_pts / 20)))
             push!(results, (rep=rep, method="tlr", value=val, time=t, error=missing, est_error=err))
         end
@@ -174,20 +244,18 @@ function summarize_results(df::DataFrame)
 end
 
 
-function run_all_simulations_sparse(ns, n_ptss, n_reps; n_diag=30)
+function run_all_simulations_sparse(ns, n_ptss, n_reps)
     val_df = DataFrame()
     t_df = DataFrame()
 
-    for n in ns
+    @showprogress for n in ns
         for n_pts in n_ptss
-            results, baseline = compare_sparse_methods(n_dim=n, n_diag=n_diag, qmc_pts=n_pts, n_reps=n_reps)
+            results, baseline = compare_sparse_methods(n_dim=n, qmc_pts=n_pts, n_reps=n_reps)
             val_df_i, t_df_i = summarize_results(results)
 
             val_df_i[!, :n] = fill(n, nrow(val_df_i))
-            val_df_i[!, :n_diag] = fill(n_diag, nrow(val_df_i))
             val_df_i[!, :n_pts] = fill(n_pts, nrow(val_df_i))
             t_df_i[!, :n] = fill(n, nrow(t_df_i))
-            t_df_i[!, :n_diag] = fill(n_diag, nrow(t_df_i))
             t_df_i[!, :n_pts] = fill(n_pts, nrow(t_df_i))
 
             append!(val_df, val_df_i)
@@ -199,11 +267,11 @@ function run_all_simulations_sparse(ns, n_ptss, n_reps; n_diag=30)
 end
 
 
-function run_all_simulations_dense(ns, n_ptss, n_reps)
+function run_all_simulations_sparse2(ns, n_ptss, n_reps)
     val_df = DataFrame()
     t_df = DataFrame()
 
-    for n in ns
+    @showprogress for n in ns
         for n_pts in n_ptss
             results, baseline = compare_dense_methods(n_dim=n, qmc_pts=n_pts, n_reps=n_reps)
             val_df_i, t_df_i = summarize_results(results)
@@ -223,17 +291,16 @@ end
 
 
 ns = 2 .^ [Int(x) for x in simcfg("simulation_sparse", "n_powers", [8, 9, 10, 11, 12])]
-n_ptss = [Int(x) for x in simcfg("simulation_sparse", "m_values", [2^11 * 12, 2^11 * 120])]
+n_ptss = [Int(x) for x in simcfg("simulation_sparse", "m_values", [2^11 * 120])]
 n_reps = Int(simcfg("simulation_sparse", "n_reps", 100))
-n_diag = Int(simcfg("simulation_sparse", "n_diag", 30))
 
-sparse_vals, sparse_times = run_all_simulations_sparse(ns, n_ptss, n_reps; n_diag=n_diag)
-sparse_vals[!, :matrix] .= "sparse"
-sparse_times[!, :matrix] .= "sparse"
+sparse_vals, sparse_times = run_all_simulations_sparse(ns, n_ptss, n_reps)
+sparse_vals[!, :matrix] .= "mattern_cov1"
+sparse_times[!, :matrix] .= "mattern_cov1"
 
-dense_vals, dense_times = run_all_simulations_dense(ns, n_ptss, n_reps)
-dense_vals[!, :matrix] .= "fixed"
-dense_times[!, :matrix] .= "fixed"
+dense_vals, dense_times = run_all_simulations_sparse2(ns, n_ptss, n_reps)
+dense_vals[!, :matrix] .= "mattern_cov2"
+dense_times[!, :matrix] .= "mattern_cov2"
 
 combined_vals = vcat(sparse_vals, dense_vals; cols=:union)
 combined_times = vcat(sparse_times, dense_times; cols=:union)

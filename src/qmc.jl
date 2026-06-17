@@ -217,7 +217,7 @@ function QMCDataSparse(C::Matrix{T0},
     U = chol.U
 
     for i in eachindex(U)
-        if U[i] < eps(T) / 9
+        if abs(U[i]) < eps(T) / n
             U[i] = zero(T)
         end
     end
