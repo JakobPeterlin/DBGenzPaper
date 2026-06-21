@@ -7,15 +7,27 @@ using CairoMakie
 using LaTeXStrings
 using CategoricalArrays
 
-df_timeit = CSV.read(sim_resultpath("qmc_parts_timed.csv"), DataFrame)
-df_plot = deepcopy(df_timeit)
-df_plot = df_plot[df_plot.Section.!="Total", :]
-df_plot = df_plot[df_plot.Section.!="DB loop", :]
+function timed_parts_path(filename::AbstractString)
+    path = resultpath(filename)
+    isfile(path) && return path
+    legacy = joinpath(PROJECT_ROOT, "results", filename)
+    isfile(legacy) && return legacy
+    return path
+end
 
-df_plot.percent = 100 .* df_plot.Percent
-df_plot.section = df_plot.Section
+section_label_map = Dict(
+    "Pre-allocation" => "Pre-allocation",
+    "Cholesky" => "Cholesky factorization",
+    "Generating QMC points" => "QMC point generation",
+    "Affine scrambling" => "Affine scrambling",
+    "BLAS mul!" => "BLAS multiplication",
+    "Copy to/from buffers" => "Buffer copying",
+    "Computation of quantiles" => "Quantile computation",
+    "Internal multiplication" => "Internal multiplication",
+    "Clculation of CDFs" => "CDF calculation",
+)
 
-section_order = String[
+raw_section_order = String[
     "Pre-allocation",
     "Cholesky",
     "Generating QMC points",
@@ -26,14 +38,34 @@ section_order = String[
     "Internal multiplication",
     "Clculation of CDFs",
 ]
+section_order = [section_label_map[s] for s in raw_section_order]
+
+df_apple = CSV.read(timed_parts_path("qmc_parts_timed.csv"), DataFrame)
+df_apple.machine .= "Apple M2 Ultra"
+df_intel = CSV.read(timed_parts_path("qmc_parts_timedIntel.csv"), DataFrame)
+df_intel.machine .= "Intel Xeon"
+
+df_timeit = vcat(df_apple, df_intel)
+df_plot = deepcopy(df_timeit)
+df_plot = df_plot[df_plot.Section.!="Total", :]
+df_plot = df_plot[df_plot.Section.!="DB loop", :]
+
+df_plot.percent = 100 .* df_plot.Percent
+df_plot.section = [get(section_label_map, s, s) for s in df_plot.Section]
+
 present_sections = unique(df_plot.section)
 extra_sections = sort(collect(setdiff(present_sections, section_order)))
 section_levels = vcat([s for s in section_order if s in present_sections], extra_sections)
 df_plot.section = categorical(df_plot.section; ordered=true, levels=section_levels)
 
+machine_order = ["Apple M2 Ultra", "Intel Xeon"]
+df_plot.machine = categorical(df_plot.machine; ordered=true, levels=machine_order)
+
 df_plot.n_exp = round.(Int, log2.(df_plot.n))
-df_plot.n_pts_exp = round.(Int, log2.(df_plot.n_pts))
-df_plot.n_pts_label = LaTeXString.(["2^{$e}" for e in df_plot.n_pts_exp])
+n_pts_values = sort(unique(df_plot.n_pts))
+n_pts_order = string.(n_pts_values)
+df_plot.n_pts_label = string.(df_plot.n_pts)
+df_plot.n_pts_label = categorical(df_plot.n_pts_label; ordered=true, levels=n_pts_order)
 
 exps = sort(unique(df_plot.n_exp))
 xpos = Dict(e => i for (i, e) in enumerate(exps))
@@ -47,19 +79,21 @@ plt =
         :percent => "Runtime (%)";
         stack=:section,
         color=:section,
-        col=:n_pts_label => "Number of points",
+        col=:machine,
+        row=:n_pts_label => "Number of points",
     ) *
     visual(BarPlot)
 
 fig = draw(
     plt;
+    figure=(size=(900, 650),),
     axis=(
         xlabel="n",
         ylabel="Runtime (%)",
         xticks=(1:length(exps), xtick_labels),
         xticklabelrotation=0.0,
     ),
-    legend=(title="Section",),
+    legend=(title="Section", reverse=true),
 )
 
 save(resultpath("qmc_parts_stacked.pdf"), fig)

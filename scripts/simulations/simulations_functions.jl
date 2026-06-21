@@ -24,6 +24,11 @@ function fixed_dense(n::Int; jitter::Float64=1.0, rng=Random.default_rng())
 end
 
 
+function fixed_spd(n::Int; jitter::Float64=1.0, rng=Random.default_rng())
+    return fixed_dense(n; jitter=jitter, rng=rng)
+end
+
+
 
 function fixed_sparse(n::Int, n_sp::Int)
     M = diagm(ones(n) * n_sp / 2)

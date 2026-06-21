@@ -83,6 +83,9 @@ end
 
 
 
+
+
+
 function QMC_opts(T=Float64;
     chol_block_size::Int=2^6,
     chol_block_size2::Int=2^9,
@@ -98,6 +101,25 @@ function QMC_opts(T=Float64;
 
     return QMCOpts{T}(chol_block_size, chol_block_size2, m, block_size_i, block_size_i2, block_size_j, n_blocks, n_reps, n_bits, max_pts, max_abs_err)
 end
+
+
+
+
+
+
+
+function truncate_matrixU!(U::Matrix{T}) where T
+    min_val = eps(T) / T(size(U, 1) * 9)
+    @batch minbatch = 2^6 for j in axes(U, 2)
+        @inbounds for i in axes(U, 1)
+            if abs(U[i, j]) < min_val
+                U[i, j] = zero(T)
+            end
+        end
+    end
+end
+
+
 
 
 
@@ -151,6 +173,8 @@ function QMCData(C::Matrix{T0},
     if chol.rank != n
         throw(ArgumentError("QMCData requires a full-rank Cholesky factorization."))
     end
+
+    truncate_matrixU!(chol.U)
 
     return QMCData{T,typeof(qmc_gen)}(chol, chol.a, chol.b, qmc_gen, Ys, sub_mats, c_vecs, dc_vecs, p_vecs, qmc_reps, sum_p_threads, opts)
 end
@@ -216,11 +240,7 @@ function QMCDataSparse(C::Matrix{T0},
 
     U = chol.U
 
-    for i in eachindex(U)
-        if abs(U[i]) < eps(T) / n
-            U[i] = zero(T)
-        end
-    end
+    truncate_matrixU!(U)
 
     U_S = sparse(triu(U, 1))
     nz_ranges = Vector{UnitRange{Int}}(undef, n)
