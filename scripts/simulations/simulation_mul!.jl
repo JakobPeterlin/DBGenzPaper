@@ -9,30 +9,37 @@ end
 
 sim_reps = simcfg("simulation_mul!", "n_reps", 1000)
 
-o1(m) = QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6)
+o1(m) = use_MKL_instead_of_ACC ?
+        QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
+        QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^10, block_size_i2=2^6, block_size_j=m >= 2^12 ? 2^8 : 2^7)
 
-o1_OB(m) = QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6)
+o1_OB(m) = use_MKL_instead_of_ACC ? QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^9, block_size_i2=2^6, block_size_j=2^6) :
+           QMC_opts(m=m, max_pts=m, n_reps=1, block_size_i=2^9, block_size_i2=2^6, block_size_j=m >= 2^12 ? 2^8 : 2^7)
 
 
 
-
+##
 
 
 using OpenBLAS_jll
 
 
-function compare_mul(n::Int, m::Int, n_reps::Int, o1;
+function compare_mul(n::Int, m::Int, n_reps::Int, o1_fun;
     seed::Int=42,
     qmc_type::Symbol=:Richtmyer,
     mat_fun=rand_spd)
 
     rng = MersenneTwister(seed)
-    opts = o1(m)
+    opts = o1_fun(m)
+
+    use_AppleBLAS = occursin("Accelerate", string(BLAS.get_config()))
+
 
     # QMC / pnorm timing
     S = mat_fun(n; rng=rng)
-    a = fill(-Inf, n)
-    b = fill(Inf, n)
+    k = quantile(Normal(), (1 + 0.25^(1 / n)) / 2)
+    a = -k * sqrt.(diag(S))
+    b = k * sqrt.(diag(S))
     # baseline
     data = QMCData(copy(S), copy(a), copy(b), opts, rng, qmc_type)
 
@@ -45,7 +52,7 @@ function compare_mul(n::Int, m::Int, n_reps::Int, o1;
     BLAS.set_num_threads(1)
 
     for i in 1:n_reps
-        pnorm_times[i] = @elapsed qmc_pnorm!(data)
+        pnorm_times[i] = @elapsed qmc_pnorm!(data, use_AppleBLAS)
     end
 
     BLAS.set_num_threads(b_t)
@@ -101,19 +108,25 @@ function run_mul_comparissons(ns, ms, n_reps::Int, opts;
 end
 
 
+max_pts = [2^10 * 7, 2^14 * 7]
 
 use_accelerated_blas!()
 
-@time mul_comp_accelerated = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1)
+@time mul_comp_accelerated = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], max_pts, sim_reps, o1)
 mul_comp_accelerated.BLAS .= ACCELERATED_BLAS_LABEL
 
+##
+
+# To trigger BLAS threads reset withing qmc_pnorm!
 
 openblas_path = OpenBLAS_jll.libopenblas_path
 LinearAlgebra.BLAS.lbt_forward(openblas_path; clear=true)
 
-@time mul_comp_OB = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], 2 .^ (10, 14), sim_reps, o1_OB)
+@time mul_comp_OB = run_mul_comparissons(2 .^ [9, 10, 11, 12, 13], max_pts, sim_reps, o1_OB)
 mul_comp_OB.BLAS .= "OpenBLAS"
 
+
+##
 
 
 
