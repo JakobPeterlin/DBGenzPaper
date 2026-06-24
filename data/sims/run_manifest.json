@@ -1,12 +1,16 @@
 {
+  "timestamp_utc": "2026-06-24T03:34:33.230",
   "timestamp_utc": "2026-06-23T15:29:45.197",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
-    "simulation_comparison"
+    "simulation_sparse"
   ],
   "results": [
     {
+      "script": "simulations/simulation_sparse.jl",
+      "target": "simulation_sparse",
+      "elapsed_seconds": 241720.365091501
       "script": "simulations/simulation_comparison.jl",
       "target": "simulation_comparison",
       "elapsed_seconds": 248223.568723959
