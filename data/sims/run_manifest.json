@@ -1,19 +1,21 @@
 {
-  "timestamp_utc": "2026-06-24T03:34:33.230",
-  "timestamp_utc": "2026-06-23T15:29:45.197",
+  "timestamp_utc": "2026-06-25T01:12:58.374",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
-    "simulation_sparse"
+    "simulation_mul!",
+    "simulation_timed"
   ],
   "results": [
     {
-      "script": "simulations/simulation_sparse.jl",
-      "target": "simulation_sparse",
-      "elapsed_seconds": 241720.365091501
-      "script": "simulations/simulation_comparison.jl",
-      "target": "simulation_comparison",
-      "elapsed_seconds": 248223.568723959
+      "script": "simulations/simulation_mul!.jl",
+      "target": "simulation_mul!",
+      "elapsed_seconds": 53182.035460941
+    },
+    {
+      "script": "simulations/simulation_timed.jl",
+      "target": "simulation_timed",
+      "elapsed_seconds": 120.772255778
     }
   ]
 }
