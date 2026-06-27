@@ -21,5 +21,5 @@ n_reps = 1000
 n_reps = 1000
 
 [simulation_timed]
-n_reps = 10
+n_reps = 1000
 b0 = 3.0
