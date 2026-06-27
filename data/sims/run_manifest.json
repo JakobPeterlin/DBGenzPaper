@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "timestamp_utc": "2026-06-27T20:55:49.655",
+=======
+  "timestamp_utc": "2026-06-27T19:56:21.824",
+>>>>>>> ec91e99 (Merge)
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
@@ -9,7 +13,11 @@
     {
       "script": "simulations/simulation_timed.jl",
       "target": "simulation_timed",
+<<<<<<< HEAD
       "elapsed_seconds": 10486.868489247
+=======
+      "elapsed_seconds": 6974.497205083
+>>>>>>> ec91e99 (Merge)
     }
   ]
 }

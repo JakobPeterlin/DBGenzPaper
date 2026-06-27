@@ -37,27 +37,39 @@ function add_n_ticks(df::DataFrame; n_col::Symbol)
     return ns_sorted, tick_labels
 end
 
-function power2_ticks(values)
+function power10_ticks(values)
     positive_values = filter(x -> isfinite(x) && x > 0, collect(skipmissing(values)))
-    exps = floor(Int, log2(minimum(positive_values))):ceil(Int, log2(maximum(positive_values)))
-    tick_values = 2.0 .^ exps
-    tick_labels = [L"2^{%$k}" for k in exps]
+    exps = floor(Int, log10(minimum(positive_values))):ceil(Int, log10(maximum(positive_values)))
+    tick_values = 10.0 .^ exps
+    tick_labels = [L"10^{%$k}" for k in exps]
     return tick_values, tick_labels
 end
+
+const ratio_extra_ticks = [(50.0, L"50"), (250.0, L"250")]
+
+function ratio_y_ticks(values)
+    tick_values, tick_labels = power10_ticks(values)
+    for (val, label) in ratio_extra_ticks
+        if !any(isapprox(val; rtol=0), tick_values)
+            push!(tick_values, val)
+            push!(tick_labels, label)
+        end
+    end
+    perm = sortperm(tick_values)
+    return tick_values[perm], tick_labels[perm]
+end
+
+const ratio_ref_lines = mapping([50, 100, 250]) * visual(HLines; linestyle=:dash, color=:gray)
 
 # Sparse vs fixed matrix comparison
 indicator_cols = [:machine, :n, :n_pts, :matrix]
 sd_max_pts = 2^11 * 120
 matrix_label_map = Dict(
-    "mattern2" => L"$\Sigma_1$",
-    "mattern_cov2" => L"$\Sigma_1$",
-    "fixed" => L"$\Sigma_2$",
+    "mattern_cov2" => L"$\Sigma_4$",
     "fixed_dense" => L"$\Sigma_2$",
-    "mattern1" => L"$\Sigma_3$",
     "mattern_cov1" => L"$\Sigma_3$",
-    "sparse" => L"$\Sigma_3$",
 )
-matrix_order = [L"$\Sigma_1$", L"$\Sigma_2$", L"$\Sigma_3$"]
+matrix_order = [L"$\Sigma_2$", L"$\Sigma_3$", L"$\Sigma_4$"]
 
 df_sd = read_machine_results("sparse_dense_times.csv", "sparse_dense_timesIntel.csv")
 df_sd = df_sd[df_sd.n_pts.==sd_max_pts, :]
@@ -66,32 +78,42 @@ rename!(df_sd_p, :min => :pnorm_min)
 df_sd = leftjoin(df_sd, df_sd_p, on=indicator_cols)
 df_sd.ratio = df_sd.min ./ df_sd.pnorm_min
 df_sd.method = string.(df_sd.method)
-replace!(df_sd.method, "pnorm" => "DB-FP32", "pnorm_sparse" => "DB-Sparse", "tlr" => "TLR")
-df_sd = df_sd[in.(df_sd.method, Ref(["DB-FP32", "DB-Sparse", "TLR"])), :]
+sd_method_order = ["DB", "DB-FP32", "DB-Sparse", "DB-Sparse-FP32", "TLR"]
+replace!(
+    df_sd.method,
+    "pnorm" => "DB",
+    "pnorm32" => "DB-FP32",
+    "pnorm_sparse" => "DB-Sparse",
+    "pnorm_sparse32" => "DB-Sparse-FP32",
+    "tlr" => "TLR",
+)
+df_sd = df_sd[in.(df_sd.method, Ref(sd_method_order)), :]
+df_sd.method = categorical(df_sd.method; ordered=true, levels=sd_method_order)
 df_sd.matrix_label = [get(matrix_label_map, string(m), latexstring(string(m))) for m in df_sd.matrix]
 df_sd.matrix_label = categorical(df_sd.matrix_label; ordered=true, levels=matrix_order)
 n_levels_sd, n_labels_sd = add_n_ticks(df_sd; n_col=:n)
-y_ticks_sd = power2_ticks(df_sd.ratio)
+y_ticks_sd = ratio_y_ticks(df_sd.ratio)
 
 plt_sd = AlgebraOfGraphics.data(df_sd) *
          mapping(
-    :n, :ratio;
-    color=:method => "Method",
-    group=:method,
-    col=:machine => "System",
-    row=:matrix_label => "Matrix",
-) *
-         (visual(Lines) + visual(Scatter))
+             :n, :ratio;
+             color=:method => "Method",
+             group=:method,
+             col=:machine => "System",
+             row=:matrix_label => "Matrix",
+         ) *
+         (visual(Lines) + visual(Scatter)) +
+         ratio_ref_lines
 
 fig_sd = draw(
     plt_sd;
     figure=(size=(900, 750),),
     axis=(
         xlabel="Matrix size (n)",
-        ylabel="Time ratio (method / DB-FP32)",
+        ylabel="Time ratio (method / DB)",
         xticks=(n_levels_sd, n_labels_sd),
         xscale=log2,
-        yscale=log2,
+        yscale=log10,
         yticks=y_ticks_sd,
     ),
     legend=(position=:bottom, orientation=:horizontal, titleposition=:left),
@@ -109,7 +131,7 @@ df_cmp = leftjoin(df_cmp, df_cmp_p, on=indicator_cols)
 df_cmp.ratio = df_cmp.min ./ df_cmp.pnorm_min
 df_cmp.n_pts_str = string.(df_cmp.n_pts)
 n_levels_cmp, n_labels_cmp = add_n_ticks(df_cmp; n_col=:n)
-y_ticks_cmp = power2_ticks(df_cmp.ratio)
+y_ticks_cmp = ratio_y_ticks(df_cmp.ratio)
 df_cmp.n_pts_str = latexstring.(df_cmp.n_pts_str)
 replace!(df_cmp.n_pts_str, L"24576" => L"$2^{11} * 12$", L"245760" => L"$2^{11} * 120$")
 
@@ -118,23 +140,24 @@ replace!(df_cmp.method, "pnorm" => "DB", "mvnormcdf" => "MvNormCDF.jl", "tlr" =>
 
 plt_cmp = AlgebraOfGraphics.data(df_cmp) *
           mapping(
-    :n, :ratio;
-    color=:method => "Method",
-    group=:method,
-    col=:machine => "System",
-    row=:n_pts_str => "m",
-) *
-          (visual(Lines) + visual(Scatter))
+              :n, :ratio;
+              color=:method => "Method",
+              group=:method,
+              col=:machine => "System",
+              row=:n_pts_str => "m",
+          ) *
+          (visual(Lines) + visual(Scatter)) +
+          ratio_ref_lines
 
 fig_cmp = draw(
     plt_cmp;
     figure=(size=(900, 600),),
     axis=(
         xlabel="Matrix size (n)",
-        ylabel="Time ratio (method / DF)",
+        ylabel="Time ratio (method / DB)",
         xticks=(n_levels_cmp, n_labels_cmp),
         xscale=log2,
-        yscale=log2,
+        yscale=log10,
         yticks=y_ticks_cmp,
     ),
     legend=(position=:bottom, orientation=:horizontal, titleposition=:left),

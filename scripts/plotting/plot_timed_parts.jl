@@ -19,8 +19,9 @@ section_label_map = Dict(
     "Pre-allocation" => "Pre-allocation",
     "Cholesky" => "Cholesky factorization",
     "Generating QMC points" => "QMC point generation",
-    "Affine scrambling" => "Affine scrambling",
+    "Affine scrambling" => "QMC randomization",
     "BLAS mul!" => "BLAS multiplication",
+    "BLAS multiplication" => "BLAS multiplication",
     "Copy to/from buffers" => "Buffer copying",
     "Computation of quantiles" => "Quantile computation",
     "Internal multiplication" => "Internal multiplication",
@@ -32,7 +33,7 @@ raw_section_order = String[
     "Cholesky",
     "Generating QMC points",
     "Affine scrambling",
-    "BLAS mul!",
+    "BLAS multiplication",
     "Copy to/from buffers",
     "Computation of quantiles",
     "Internal multiplication",
@@ -57,14 +58,20 @@ present_sections = unique(df_plot.section)
 extra_sections = sort(collect(setdiff(present_sections, section_order)))
 section_levels = vcat([s for s in section_order if s in present_sections], extra_sections)
 df_plot.section = categorical(df_plot.section; ordered=true, levels=section_levels)
+section_levels_stack = reverse(collect(section_levels))
+df_plot.section_stack = categorical(string.(df_plot.section); ordered=true, levels=section_levels_stack)
 
 machine_order = ["Apple M2 Ultra", "Intel Xeon"]
 df_plot.machine = categorical(df_plot.machine; ordered=true, levels=machine_order)
 
 df_plot.n_exp = round.(Int, log2.(df_plot.n))
+n_pts_label_map = Dict(
+    24576 => L"$2^{11} * 12$",
+    245760 => L"$2^{11} * 120$",
+)
 n_pts_values = sort(unique(df_plot.n_pts))
-n_pts_order = string.(n_pts_values)
-df_plot.n_pts_label = string.(df_plot.n_pts)
+n_pts_order = [n_pts_label_map[v] for v in n_pts_values]
+df_plot.n_pts_label = [n_pts_label_map[v] for v in df_plot.n_pts]
 df_plot.n_pts_label = categorical(df_plot.n_pts_label; ordered=true, levels=n_pts_order)
 
 exps = sort(unique(df_plot.n_exp))
@@ -77,7 +84,7 @@ plt =
     mapping(
         :x => "n",
         :percent => "Runtime (%)";
-        stack=:section,
+        stack=:section_stack,
         color=:section,
         col=:machine,
         row=:n_pts_label => "Number of points",

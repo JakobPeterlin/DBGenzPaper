@@ -7,35 +7,32 @@ using PrettyTables
 using Printf
 
 const SPARSE_DENSE_METHOD_LABELS = Dict(
-    "pnorm" => "DB-FP32",
+    "pnorm" => "DB-FP64",
+    "pnorm32" => "DB-FP32",
     "pnorm_sparse" => "DB-Sparse",
+    "pnorm_sparse32" => "DB-Sparse-FP32",
     "tlr" => "TLR",
 )
 
 const COMPARISON_METHOD_LABELS = Dict(
     "pnorm" => "DB",
+    "mvnmvt" => "mvtnorm",
     "mvnormcdf" => "MvNormCDF.jl",
     "tlr" => "tlrmvnmvt::GenzBretz",
 )
 
 const MATRIX_LABELS = Dict(
-    "mattern_cov2" => "\$\\Sigma_1\$",
-    "mattern2" => "\$\\Sigma_1\$",
     "fixed" => "\$\\Sigma_2\$",
     "fixed_dense" => "\$\\Sigma_2\$",
     "mattern_cov1" => "\$\\Sigma_3\$",
-    "mattern1" => "\$\\Sigma_3\$",
-    "sparse" => "\$\\Sigma_3\$",
+    "mattern_cov2" => "\$\\Sigma_4\$",
 )
 
 const SPARSE_DENSE_MATRIX_ORDER = Dict(
-    "mattern_cov2" => 1,
-    "mattern2" => 1,
-    "fixed" => 2,
-    "fixed_dense" => 2,
-    "mattern_cov1" => 3,
-    "mattern1" => 3,
-    "sparse" => 3,
+    "mattern_cov2" => 3,
+    "fixed" => 1,
+    "fixed_dense" => 1,
+    "mattern_cov1" => 2,
 )
 
 label_methods!(methods, labels) = replace!(methods, [k => v for (k, v) in labels]...)
