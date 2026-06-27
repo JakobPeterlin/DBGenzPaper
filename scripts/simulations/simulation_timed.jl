@@ -362,8 +362,7 @@ end
 n_ps = [2^4, 2^6, 2^8, 2^10, 2^12]
 n_reps = simcfg("simulation_timed", "n_reps", 10)
 b0 = Float64(simcfg("simulation_timed", "b0", 3.0))
-m_values = [Int(x) for x in simcfg("simulation_comparison", "m_values",
-    [17920, 179200])]
+m_values = [2^11, 2^11 * 10]
 
 function reset_all_timers!()
     reset_timer!(to)
