@@ -1,6 +1,7 @@
 include(joinpath(@__DIR__, "setup.jl"))
 
 using Sobol, Random, LinearAlgebra, LoopVectorization, TimerOutputs, Polyester, CSV, DataFrames
+using Distributions: Normal, quantile
 use_accelerated_blas!()
 
 const to = TimerOutput()
@@ -168,7 +169,7 @@ end
             for ii1 in 1:opts.block_size_i:(n-1)
                 ii2 = min(ii1 + opts.block_size_i - 1, n - 1)
 
-                @timeit tos[i_t] "BLAS mul!" if ii1 > 1
+                @timeit tos[i_t] "BLAS multiplication" if ii1 > 1
                     if ii2 - ii1 == opts.block_size_i - 1
                         mul!(s_j,
                             view(Y_j, :, 1:(ii1-1)),
@@ -183,7 +184,7 @@ end
                 for i1 in ii1:opts.block_size_i2:ii2
                     i2 = min(i1 + opts.block_size_i2 - 1, ii2)
 
-                    @timeit tos[i_t] "BLAS mul!" if i1 > ii1
+                    @timeit tos[i_t] "BLAS multiplication" if i1 > ii1
                         prev1 = max(ii1, i1 - opts.block_size_i2)
                         prev2 = i1 - 1
                         mul!(view(s_j, :, (i1-ii1+1):(ii2-ii1+1)),
@@ -335,23 +336,34 @@ function merge_timers(tos::AbstractVector{<:TimerOutput})
     return merged
 end
 
+function section_time(df::DataFrame, section::AbstractString)
+    i = findfirst(==(section), df.Section)
+    return isnothing(i) ? 0.0 : df.Time_sec[i]
+end
+
+function scale_inner_timers_to_wall!(df::DataFrame, wall_time::Real)
+    inner_time = sum(df.Time_sec)
+    if wall_time > 0 && inner_time > 0
+        df.Time_sec .*= wall_time / inner_time
+    end
+    return df
+end
+
 function combined_timer_df(
     to::TimerOutput,
     tos::AbstractVector{<:TimerOutput};
     drop_sections::Vector{String}=String["Total", "DB loop"],
 )
-    df_to = to_df(to, 0; subtract_cholesky_from_prealloc=true)
+    df_to_all = to_df(to, 0; subtract_cholesky_from_prealloc=true)
+    db_loop_time = section_time(df_to_all, "DB loop")
+    df_to = df_to_all
     if !isempty(drop_sections)
         keep = .!in.(df_to.Section, Ref(drop_sections))
         df_to = df_to[keep, :]
     end
 
     df_tos = to_df(merge_timers(tos), 0; subtract_cholesky_from_prealloc=false)
-    n_tos = length(tos)
-    if n_tos > 0
-        df_tos.Time_sec ./= n_tos
-        df_tos.Alloc_MiB ./= n_tos
-    end
+    scale_inner_timers_to_wall!(df_tos, db_loop_time)
 
     df = vcat(df_to, df_tos)
     total = sum(df.Time_sec)
@@ -361,8 +373,7 @@ end
 
 n_ps = [2^4, 2^6, 2^8, 2^10, 2^12]
 n_reps = simcfg("simulation_timed", "n_reps", 10)
-b0 = Float64(simcfg("simulation_timed", "b0", 3.0))
-m_values = [2^11, 2^11 * 10]
+m_values = [2^11 * 12, 2^11 * 120]
 
 function reset_all_timers!()
     reset_timer!(to)
@@ -371,8 +382,15 @@ function reset_all_timers!()
     end
 end
 
-function trial_run!(M, n_p, b0, opts, rng=Random.default_rng())
-    data = QMCData_timeit(copy(M), -Inf * ones(n_p), b0 * ones(n_p); opts=opts)
+function genz_bounds(M::AbstractMatrix)
+    k = quantile(Normal(), (1 + 0.25^(1 / size(M, 1))) / 2)
+    s = sqrt.(diag(M))
+    return -k .* s, k .* s
+end
+
+function trial_run!(M, opts, rng=Random.default_rng())
+    a, b = genz_bounds(M)
+    data = QMCData_timeit(copy(M), copy(a), copy(b); opts=opts, rng=rng, qmc_type=:Richtmyer)
     qmc_pnorm!(data, rng)
 end
 
@@ -383,13 +401,13 @@ warmup_max_pts = 2^8
 warmup_opts = timed_qmc_opts(warmup_max_pts)
 warmup_M = ones(warmup_n, warmup_n)
 warmup_M[diagind(warmup_M)] .= 2.0
-trial_run!(warmup_M, warmup_n, b0, warmup_opts)
+trial_run!(warmup_M, warmup_opts)
 reset_all_timers!()
 
 df_timeit = DataFrame()
 
 for qmc_pts in m_values
-    max_pts = Int(qmc_pts ÷ 12)
+    max_pts = Int(qmc_pts / 12)
     opts = timed_qmc_opts(max_pts)
     println("Running for qmc_pts = $qmc_pts (max_pts = $max_pts)")
 
@@ -397,14 +415,16 @@ for qmc_pts in m_values
         println("  n_p = $n_p")
         local M = ones(n_p, n_p)
         M[diagind(M)] .= 2.0
+        local a, b = genz_bounds(M)
         reset_all_timers!()
 
         for _ in 1:n_reps
             GC.enable(false)
+            rng = Random.default_rng()
 
             @timeit to "Total" begin
-                @timeit to "Pre-allocation" data_i = QMCData_timeit(copy(M), -Inf * ones(n_p), b0 * ones(n_p); opts=opts)
-                qmc_pnorm!(data_i, Random.default_rng())
+                @timeit to "Pre-allocation" data_i = QMCData_timeit(copy(M), copy(a), copy(b); opts=opts, rng=rng, qmc_type=:Richtmyer)
+                qmc_pnorm!(data_i, rng)
             end
 
             GC.enable(true)
