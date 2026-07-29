@@ -165,7 +165,7 @@ function simulation_precision(;
     n_reps::Integer=Int(simcfg("simulation_mul!", "n_reps", 1000)),
     rng::AbstractRNG=MersenneTwister(42),
     simulation_functions=(rand_spd, mattern_cov1),
-    max_pts::Integer=2^11,
+    max_pts::Integer=2^11 * 10,
     qmc_type::Symbol=:Richtmyer,
 )
     return simulation_precision(
