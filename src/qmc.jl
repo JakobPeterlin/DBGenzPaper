@@ -4,10 +4,11 @@ using Sobol, Random, LinearAlgebra, LoopVectorization, SparseArrays
 using Polyester
 
 include("cholesky.jl")
-include("qmc_generators.jl"), quantile, cdf
+include("qmc_generators.jl")
 
 using MvNormalCDF
 using Distributions: Normal
+using SpecialFunctions: erf, erfc, erfinv
 
 
 
@@ -191,7 +192,7 @@ function QMCData(C::Matrix{T0},
     end
 
     if chol.rank != n
-        throw(ArgumentErr or("QMCData requires a full-rank Cholesky factorization."))
+        throw(ArgumentError("QMCData requires a full-rank Cholesky factorization."))
     end
 
     truncate_matrixU!(chol.U)
@@ -476,6 +477,137 @@ end
 
 
 
+function qmc_loop!(D::QMCData_Distributions{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T,G}
+    n = length(D.b)
+    opts = D.qmc_opts
+    gen = D.qmc_gen
+    ep0 = eps(T)
+    ep1 = one(T) - eps(T)
+    c05 = T(0.5)
+    c2 = T(sqrt(2.0))
+    c20 = T(2.0)
+    c10 = T(1.0)
+    c_min = T(9.0)
+    c_max = T(-9.0)
+
+    for k in 1:length(D.qmc_reps)
+        sum_p_threads = D.sum_p_threads
+        fill!(sum_p_threads, zero(T))
+
+        @batch for j1 in 1:opts.block_size_j:opts.m
+            j2 = min(j1 + opts.block_size_j - 1, opts.m)
+            r_j = j1:j2
+            i_t = mod(Threads.threadid(), Threads.nthreads()) + 1
+            Y_j = D.Ys[i_t]
+            p_j = D.p_vecs[i_t]
+            c_j = D.c_vecs[i_t]
+            dc_j = D.dc_vecs[i_t]
+            s_j = D.sub_mats[i_t]
+
+            fill!(c_j, c_1)
+            fill!(s_j, zero(T))
+            fill!(dc_j, dc_1)
+            fill!(p_j, dc_1)
+
+            for ii1 in 1:opts.block_size_i:(n-1)
+                ii2 = min(ii1 + opts.block_size_i - 1, n - 1)
+
+                if ii1 > 1
+                    if ii2 - ii1 == opts.block_size_i - 1
+                        # precompute contributions from previous dimensions 1:(ii1-1)
+                        # for the whole block of target dimensions (ii1+1):(ii2+1)
+                        mul!(s_j,
+                            view(Y_j, :, 1:(ii1-1)),
+                            view(D.C.U, 1:(ii1-1), (ii1+1):(ii2+1)))
+                    else
+                        mul!(view(s_j, :, 1:(ii2-ii1+1)),
+                            view(Y_j, :, 1:(ii1-1)),
+                            view(D.C.U, 1:(ii1-1), (ii1+1):(ii2+1)))
+                    end
+                end
+
+                for i1 in ii1:opts.block_size_i2:ii2
+                    i2 = min(i1 + opts.block_size_i2 - 1, ii2)
+
+                    if i1 > ii1
+                        # Add only the incremental contribution from the *previous* inner-block
+                        # (so we don't repeatedly re-add 1:(i1-1), and we keep future blocks correct).
+                        prev1 = max(ii1, i1 - opts.block_size_i2)
+                        prev2 = i1 - 1
+                        # Update all remaining target dimensions in the current outer block.
+                        # Target dims are (i1+1):(ii2+1) which correspond to columns (i1-ii1+1):(ii2-ii1+1) in s_j.
+                        mul!(view(s_j, :, (i1-ii1+1):(ii2-ii1+1)),
+                            view(Y_j, :, prev1:prev2),
+                            view(D.C.U, prev1:prev2, (i1+1):(ii2+1)),
+                            one(T), one(T))
+                    end
+
+
+
+                    for i in i1:i2
+                        # dimension in MVN is i+1; previous y columns are 1..i
+                        rand_points!(Y_j, gen, r_j, i, k, c_j, dc_j, ep0, ep1)
+                        @simd for i_b in 1:length(r_j)
+                            Y_j[i_b, i] = c2 * erfinv(Y_j[i_b, i])
+                        end
+
+                        # accumulate contribution from current block dimensions to the mean
+                        s_blk = view(s_j, :, (i1-ii1+1):(i2-ii1+1))
+                        # Equivalent to:
+                        # mul!(s_blk[:, i-i1+1], Y_j[:, i1:i], D.C.U[i1:i, i+1], one(T), one(T))
+                        # i.e. s_blk[:,col] .+= Y_j[:,i1:i] * u, but done explicitly for speed.
+                        col = i - i1 + 1
+                        u_i = view(D.C.U, i1:i, i + 1)
+                        K = i - i1 + 1
+                        @turbo for i_b in 1:length(r_j)
+                            acc = s_blk[i_b, col]
+                            for kk in 1:K
+                                acc = muladd(Y_j[i_b, i1+kk-1], u_i[kk], acc)
+                            end
+                            s_blk[i_b, col] = acc
+                        end
+
+                        a_i = D.a[i+1]
+                        b_i = D.b[i+1]
+                        inv_u_ii2 = one(T) / (D.C.U[i+1, i+1] * c2) # Optimization: Precompute Inverse
+
+                        @turbo for i_b in 1:length(r_j)
+                            s_val = s_blk[i_b, i-i1+1]
+                            c_j[i_b] =
+                                max(min((a_i - s_val) * inv_u_ii2, c_min), c_max)
+                            dc_j[i_b] =
+                                max(min((b_i - s_val) * inv_u_ii2, c_min), c_max)
+                        end
+
+                        @inbounds @simd for i_b in 1:length(r_j)
+                            c_val = c05 * erfc(-c_j[i_b])
+                            dc_val = c05 * erfc(-dc_j[i_b]) - c_val
+                            c_j[i_b] = c_val
+                            dc_j[i_b] = dc_val
+                            p_j[i_b] *= dc_val
+                        end
+                    end
+                end
+            end
+
+            sum_p_threads[i_t] += sum(view(p_j, 1:length(r_j)))
+        end
+
+        n_pts_local = opts.m
+        n_pts_total = n_pts0 + n_pts_local
+        mean_rep = sum(sum_p_threads) / n_pts_total
+        D.qmc_reps[k] = D.qmc_reps[k] * (n_pts0 / n_pts_total) + mean_rep
+    end
+end
+
+
+
+
+
+
+
+
+
 function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T,G}
     n = length(D.b)
     opts = D.qmc_opts
@@ -637,7 +769,10 @@ end
 
 ## Integration
 
-function qmc_pnorm!(D::Union{QMCData{T},QMCDataSparse{T}}, use_AppleBLAS=!use_MKL_instead_of_ACC) where T
+function qmc_pnorm!(
+    D::Union{QMCData{T},QMCDataSparse{T},QMCData_Distributions{T}},
+    use_AppleBLAS=!use_MKL_instead_of_ACC,
+) where T
     n = length(D.b)
     gen = D.qmc_gen
 
@@ -653,8 +788,14 @@ function qmc_pnorm!(D::Union{QMCData{T},QMCDataSparse{T}}, use_AppleBLAS=!use_MK
 
     arg_1_a = D.a[1] / (D.C.U[1, 1] * T(sqrt(2.0)))
     arg_1_b = D.b[1] / (D.C.U[1, 1] * T(sqrt(2.0)))
-    c_1 = T(0.5) * (1 + erf(arg_1_a))
-    dc_1 = T(0.5) * (erf(arg_1_b) - erf(arg_1_a))
+
+    if D isa QMCData_Distributions
+        c_1 = T(0.5) * erfc(-arg_1_a)
+        dc_1 = T(0.5) * (erfc(-arg_1_b) - erfc(-arg_1_a))
+    else
+        c_1 = T(0.5) * (1 + erf(arg_1_a))
+        dc_1 = T(0.5) * (erf(arg_1_b) - erf(arg_1_a))
+    end
 
     n_pts = 0
 
@@ -696,10 +837,3 @@ function qmc_pnorm!(D::Union{QMCData{T},QMCDataSparse{T}}, use_AppleBLAS=!use_MK
 
     return result, err_acc, n_pts
 end
-
-
-
-
-
-
-

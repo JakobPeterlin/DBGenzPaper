@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-07-29T21:25:27.559",
+  "timestamp_utc": "2026-07-29T21:58:32.640",
   "project": "DBGenzPaper",
   "config_path": "/Users/jakobpeterlin/Documents/dr/GLHT/DBGenzPaper/scripts/parameters/default.toml",
   "targets": [
@@ -9,7 +9,7 @@
     {
       "script": "simulations/simulation_precision.jl",
       "target": "simulation_precision",
-      "elapsed_seconds": 8.9861975
+      "elapsed_seconds": 8.868708042
     }
   ]
 }
