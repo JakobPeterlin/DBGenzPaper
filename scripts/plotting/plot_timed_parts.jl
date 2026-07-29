@@ -100,7 +100,7 @@ fig = draw(
         xticks=(1:length(exps), xtick_labels),
         xticklabelrotation=0.0,
     ),
-    legend=(title="Section", reverse=true),
+    legend=(title="Section", reverse=true, labelsize=24, titlesize=24),
 )
 
 save(resultpath("qmc_parts_stacked.pdf"), fig)

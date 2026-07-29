@@ -10,7 +10,7 @@ using CategoricalArrays
 const MUL_MACHINE_ORDER = ["Apple M2 Ultra", "Intel Xeon"]
 const MUL_BLAS_ORDER = ["OpenBLAS", "Accelerated BLAS"]
 const MUL_METHOD_ORDER = ["DB Loop", "mul!", "mul!_UpperTriangular"]
-const MUL_DB_METHODS = Set(["DB oop"])
+const MUL_DB_METHODS = Set(["DB Loop"])
 const MUL_LINE_LABELS = ["DB", "BLAS"]
 const MUL_LINE_COLORS = (DB=RGBf(0, 0, 1), BLAS=RGBAf(1, 0, 0, 0.8))
 const MUL_POINT_COLORS = Dict(
