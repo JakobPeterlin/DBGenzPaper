@@ -1,5 +1,5 @@
 [runner]
-targets = ["simulation_comparison", "simulation_sparse", "simulation_cholesky", "simulation_mul!", "simulation_richtmyer", "simulation_timed", "plot_cholesky_benchmarks", "plot_mul_benchmarks", "plot_richtmyer", "plot_comparisons", "plot_timed_parts", "export_tables"]
+targets = ["simulation_comparison", "simulation_sparse", "simulation_precision", "simulation_cholesky", "simulation_mul!", "simulation_richtmyer", "simulation_timed", "plot_cholesky_benchmarks", "plot_mul_benchmarks", "plot_richtmyer", "plot_comparisons", "plot_timed_parts", "export_tables"]
 
 [simulation_comparison]
 sim_reps = 1
@@ -13,6 +13,11 @@ n_reps = 1
 n_diag = 30
 n_powers = [8, 9, 10, 11, 12]
 m_values = [24576, 245760]
+
+[simulation_precision]
+n_powers = [6, 8, 10, 12]
+max_pts = 1024
+seed = 42
 
 [simulation_cholesky]
 n_reps = 1

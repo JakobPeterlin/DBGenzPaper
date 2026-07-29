@@ -53,7 +53,7 @@ sd(v::Vector{T}) where T = sqrt(var(v))
 
 
 
-function mattern_cov(n; ν=1.5, dist=1.0, σ²=1.0)
+function mattern_cov(n; ν=1.5, dist=1.0, σ²=1.0, rng=Random.default_rng())
     Σ = Matrix{Float64}(undef, n, n)
     c = σ² * 2^(1 - ν) / gamma(ν)
 
@@ -71,6 +71,9 @@ function mattern_cov(n; ν=1.5, dist=1.0, σ²=1.0)
     return Σ
 end
 
-mattern_cov0(n) = mattern_cov(n; ν=1.5, dist=n * 0.01) # 1 and 0.86 nnz
-mattern_cov1(n) = mattern_cov(n; ν=1.5, dist=n * 0.001) # 0.64 and 0.12 nnz
-mattern_cov2(n) = mattern_cov(n; ν=1.5, dist=n * 0.0001) # 0.08 and 0.01 nnz
+mattern_cov0(n; rng=Random.default_rng()) =
+    mattern_cov(n; ν=1.5, dist=n * 0.01, rng=rng) # 1 and 0.86 nnz
+mattern_cov1(n; rng=Random.default_rng()) =
+    mattern_cov(n; ν=1.5, dist=n * 0.001, rng=rng) # 0.64 and 0.12 nnz
+mattern_cov2(n; rng=Random.default_rng()) =
+    mattern_cov(n; ν=1.5, dist=n * 0.0001, rng=rng) # 0.08 and 0.01 nnz

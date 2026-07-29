@@ -6,6 +6,7 @@ include(joinpath(@__DIR__, "simulations", "setup.jl"))
 const SCRIPT_MAP = Dict(
     "simulation_comparison" => "simulations/simulation_comparison.jl",
     "simulation_sparse" => "simulations/simulation_sparse.jl",
+    "simulation_precision" => "simulations/simulation_precision.jl",
     "simulation_cholesky" => "simulations/simulation_cholesky.jl",
     "simulation_mul!" => "simulations/simulation_mul!.jl",
     "simulation_richtmyer" => "simulations/simulation_richtmyer.jl",
