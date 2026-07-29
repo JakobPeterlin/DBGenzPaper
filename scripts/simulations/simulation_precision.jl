@@ -1,5 +1,7 @@
 include("simulations_functions.jl")
 
+use_accelerated_blas!()
+
 """
     precision_qmc_opts(max_pts)
 
@@ -81,6 +83,7 @@ function simulation_precision(
 
         for n_raw in n_dim
             n = Int(n_raw)
+            println("n_dim = ", n)
 
             for rep in 1:n_reps
                 Σ = simulation_function(n; rng=rng)
