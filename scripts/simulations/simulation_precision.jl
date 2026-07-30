@@ -181,7 +181,7 @@ end
 precision_n_dim =
     2 .^ [Int(x) for x in simcfg("simulation_precision", "n_powers", [6, 8, 10, 12])]
 precision_n_reps = Int(simcfg("simulation_mul!", "n_reps", 1000))
-precision_max_pts = Int(simcfg("simulation_precision", "max_pts", 2^10))
+precision_max_pts = Int(simcfg("simulation_precision", "max_pts", 2^11 * 10))
 precision_seed = Int(simcfg("simulation_precision", "seed", 42))
 
 precision_results = simulation_precision(

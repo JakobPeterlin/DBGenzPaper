@@ -183,7 +183,7 @@ function run_simulation(;
 
     if baseline_method != "none"
         # Create a lookup for reference values
-        refs = Dict(row.rep => row.value for row in eachrow(results[results.method.==baseline_method, :]))
+        refs = Dict(row.rep => row.value for row in eachrow(results[results.method .== baseline_method, :]))
         for i in 1:nrow(results)
             if haskey(refs, results.rep[i])
                 results.error[i] = abs(results.value[i] - refs[results.rep[i]])
@@ -259,7 +259,7 @@ function run_simulation_big(;
                       (any(results.method .== "mvnormcdf") ? "mvnormcdf" : "none")
 
     if baseline_method != "none"
-        refs = Dict(row.rep => row.value for row in eachrow(results[results.method.==baseline_method, :]))
+        refs = Dict(row.rep => row.value for row in eachrow(results[results.method .== baseline_method, :]))
         for i in 1:nrow(results)
             if haskey(refs, results.rep[i])
                 results.error[i] = abs(results.value[i] - refs[results.rep[i]])

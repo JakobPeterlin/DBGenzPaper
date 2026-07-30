@@ -16,7 +16,7 @@ m_values = [24576, 245760]
 
 [simulation_precision]
 n_powers = [6, 8, 10, 12]
-max_pts = 1024
+max_pts = 20480
 seed = 42
 
 [simulation_cholesky]
