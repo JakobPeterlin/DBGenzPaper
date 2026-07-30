@@ -842,3 +842,4 @@ function qmc_pnorm!(
 
     return result, err_acc, n_pts
 end
+
