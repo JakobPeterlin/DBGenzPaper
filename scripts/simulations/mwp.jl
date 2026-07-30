@@ -31,12 +31,12 @@ using Distributions
 
 
 T = Float64
-n_dim = 2^8
+n_dim = 2^10
 max_pts = 2^11 * 10
 seed = 42
 
 
-Σ = (mattern_cov2(n_dim))
+Σ = (mattern_cov1(n_dim))
 k = (quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2))
 a = -sqrt.(diag(Σ)) * k
 b = (sqrt.(diag(Σ))) * k
@@ -73,3 +73,17 @@ opts_s = QMC_opts(T; m=max_pts, max_pts=max_pts, chol_block_size=2^8, chol_block
 
 
 val - vs
+
+
+##
+
+n_reps = 100
+opts_r11 = QMC_opts(Float32; m=2^11, max_pts=2^11, max_abs_err=0.0)
+opts_r11x10 = QMC_opts(Float32; m=2^11 * 10, max_pts=2^11 * 10, max_abs_err=0.0)
+
+@time r11 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11, MersenneTwister(seed + i), :Richtmyer))[1] for i in 1:n_reps]
+@time r11x10 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11x10, MersenneTwister(seed + i), :Richtmyer))[1] for i in 1:n_reps]
+@time s11 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_s11, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
+@time s11x10 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_s11x10, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
+
+e = Float64.(sd.((r11, r11x10, s11, s11x10)))

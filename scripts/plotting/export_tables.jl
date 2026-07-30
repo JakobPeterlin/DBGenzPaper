@@ -57,9 +57,9 @@ function write_latex_table(filename::AbstractString, df::DataFrame; formatters)
     end
 end
 
-function export_sparse_dense_table(times_filename::AbstractString, vals_filename::AbstractString,
+function export_sparse_dense_table(df_times::AbstractDataFrame, df_vals::AbstractDataFrame,
     output_filename::AbstractString)
-    df_times = CSV.read(resultpath(times_filename), DataFrame)
+    df_times = DataFrame(df_times; copycols=true)
     df_times.method = String.(df_times.method)
     df_times.matrix = String.(df_times.matrix)
     df_p = df_times[df_times.method.=="pnorm", [:n, :n_pts, :matrix, :min]]
@@ -67,7 +67,7 @@ function export_sparse_dense_table(times_filename::AbstractString, vals_filename
     df_times = leftjoin(df_times, df_p, on=[:n, :n_pts, :matrix])
     df_times.ratio = df_times.min ./ df_times.pnorm_min
 
-    df_vals = CSV.read(resultpath(vals_filename), DataFrame)
+    df_vals = DataFrame(df_vals; copycols=true)
     rename!(df_vals, :median => :value, :se_est => :mean_error)
     df_vals.method = String.(df_vals.method)
     df_vals.matrix = String.(df_vals.matrix)
@@ -107,6 +107,13 @@ function export_sparse_dense_table(times_filename::AbstractString, vals_filename
             fmt__printf("%.2f", [9]),
         ],
     )
+end
+
+function export_sparse_dense_table(times_filename::AbstractString, vals_filename::AbstractString,
+    output_filename::AbstractString)
+    df_times = CSV.read(resultpath(times_filename), DataFrame)
+    df_vals = CSV.read(resultpath(vals_filename), DataFrame)
+    export_sparse_dense_table(df_times, df_vals, output_filename)
 end
 
 function export_comparison_table(times_filename::AbstractString, vals_filename::AbstractString,
@@ -238,19 +245,25 @@ function export_erf_table(output_filename::AbstractString)
     )
 end
 
-println("Processing Sparse vs Dense...")
-export_sparse_dense_table("sparse_dense_times.csv", "sparse_dense_vals.csv", "table_sparse_dense.tex")
+function main()
+    println("Processing Sparse vs Dense...")
+    export_sparse_dense_table("sparse_dense_times.csv", "sparse_dense_vals.csv", "table_sparse_dense.tex")
 
-println("Processing Sparse vs Dense (Intel)...")
-export_sparse_dense_table("sparse_dense_timesIntel.csv", "sparse_dense_valsIntel.csv", "table_sparse_denseIntel.tex")
+    println("Processing Sparse vs Dense (Intel)...")
+    export_sparse_dense_table("sparse_dense_timesIntel.csv", "sparse_dense_valsIntel.csv", "table_sparse_denseIntel.tex")
 
-println("Processing Method Comparison...")
-export_comparison_table("comparisson_times.csv", "comparisson_vals.csv", "table_comparison.tex")
+    println("Processing Method Comparison...")
+    export_comparison_table("comparisson_times.csv", "comparisson_vals.csv", "table_comparison.tex")
 
-println("Processing Method Comparison (Intel)...")
-export_comparison_table("comparisson_timesIntel.csv", "comparisson_valsIntel.csv", "table_comparisonIntel.tex")
+    println("Processing Method Comparison (Intel)...")
+    export_comparison_table("comparisson_timesIntel.csv", "comparisson_valsIntel.csv", "table_comparisonIntel.tex")
 
-println("Processing erf/erfinv Comparison...")
-export_erf_table("table_erf_acc.tex")
+    println("Processing erf/erfinv Comparison...")
+    export_erf_table("table_erf_acc.tex")
 
-println("Done!")
+    println("Done!")
+end
+
+if abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    main()
+end

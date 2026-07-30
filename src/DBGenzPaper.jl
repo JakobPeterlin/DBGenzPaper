@@ -1,10 +1,10 @@
 module DBGenzPaper
 
 # For running on Intel processors.
-const use_MKL_instead_of_ACC = true
+const use_MKL_instead_of_ACC = false
 
 # For storing the results on different processors in different files.
-const CPU_post_fix = "Intel"
+const CPU_post_fix = ""
 
 include("qmc.jl")
 

@@ -136,7 +136,13 @@ df_cmp.n_pts_str = latexstring.(df_cmp.n_pts_str)
 replace!(df_cmp.n_pts_str, L"24576" => L"$2^{11} * 12$", L"245760" => L"$2^{11} * 120$")
 
 df_cmp.method = String.(df_cmp.method)
-replace!(df_cmp.method, "pnorm" => "DB", "mvnormcdf" => "MvNormCDF.jl", "tlr" => "tlrmvtnorm::GenzBretz")
+replace!(
+    df_cmp.method,
+    "pnorm" => "DB",
+    "mvnmvt" => "mvtnorm",
+    "mvnormcdf" => "MvNormCDF.jl",
+    "tlr" => "tlrmvnmvt::GenzBretz",
+)
 
 plt_cmp = AlgebraOfGraphics.data(df_cmp) *
           mapping(
