@@ -31,12 +31,12 @@ using Distributions
 
 
 T = Float64
-n_dim = 2^12
+n_dim = 2^8
 max_pts = 2^11 * 10
-seed = 1
+seed = 42
 
 
-Σ = (mattern_cov1(n_dim))
+Σ = (mattern_cov2(n_dim))
 Σ = (rand_spd(n_dim))
 k = (quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2))
 a = -sqrt.(diag(Σ)) * k
@@ -58,13 +58,13 @@ opts_s = QMC_opts(T; m=max_pts, max_pts=max_pts, chol_block_size=2^8, chol_block
 
 
 
-#@time data_s = QMCDataSparse(Σ, a, b, opts_s, MersenneTwister(seed),:Richtmyer);
+@time data_s = QMCDataSparse(Σ, a, b, opts_s, MersenneTwister(seed), :Richtmyer);
 
 
-#    @time data = QMCData(Σ, a, b, opts, MersenneTwister(seed),:Richtmyer);
+@time data = QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer);
 
 
-#@time vs, es, t = qmc_pnorm!(QMCDataSparse(Σ2, a, b, opts_s, MersenneTwister(seed), :Richtmyer););
+@time vs, es, t = qmc_pnorm!(QMCDataSparse(Σ2, a, b, opts_s, MersenneTwister(seed), :Richtmyer););
 
 
 
@@ -73,22 +73,4 @@ opts_s = QMC_opts(T; m=max_pts, max_pts=max_pts, chol_block_size=2^8, chol_block
 
 
 
-##
-
-@time data = QMCData(Σ, a, b, opts, MersenneTwister(seed), :Richtmyer);
-
-@time val1, err1, _ = qmc_pnorm!(data;);
-
-
-for i in eachindex(data.C.U)
-    if abs(data.C.U[i]) < eps(Float64) / n_dim
-        data.C.U[i] = zero(Float64)
-    end
-end
-
-@time val2, err2, _ = qmc_pnorm!(data;);
-
-
-
-
-
+val - vs

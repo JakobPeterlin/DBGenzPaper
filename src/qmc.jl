@@ -659,7 +659,7 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
                     fill!(s_j, zero(T))
                     nz_range_i = D.nz_ranges[i+1]
 
-                    @turbo for p_u in nz_range_i
+                    @turbo check_empty=true for p_u in nz_range_i
                         i_u = U_S.rowval[p_u] # 1 <= i_u <= i (strict upper-triangular)
                         v_u = U_S.nzval[p_u]
                         for i_b in 1:jlen
