@@ -1,9 +1,5 @@
 {
-<<<<<<< HEAD
-  "timestamp_utc": "2026-07-30T02:09:47.811",
-=======
-  "timestamp_utc": "2026-07-30T00:27:49.393",
->>>>>>> 15bed11 (Precision results M2U.)
+  "timestamp_utc": "2026-07-30T14:58:02.702",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
@@ -13,11 +9,7 @@
     {
       "script": "simulations/simulation_precision.jl",
       "target": "simulation_precision",
-<<<<<<< HEAD
-      "elapsed_seconds": 9084.642542236
-=======
-      "elapsed_seconds": 4330.151626542
->>>>>>> 15bed11 (Precision results M2U.)
+      "elapsed_seconds": 22307.343684137
     }
   ]
 }
