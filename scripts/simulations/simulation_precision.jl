@@ -191,4 +191,6 @@ precision_results = simulation_precision(
     max_pts=precision_max_pts,
 )
 
-CSV.write(sim_resultpath("precision.csv"), precision_results)
+precision_filename =
+    isempty(CPU_post_fix) ? "precision.csv" : "precision_$(CPU_post_fix).csv"
+CSV.write(resultpath(precision_filename), precision_results)
