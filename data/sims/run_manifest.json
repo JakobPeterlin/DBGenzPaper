@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "timestamp_utc": "2026-07-30T17:27:58.195",
+=======
+  "timestamp_utc": "2026-07-30T18:38:57.087",
+>>>>>>> 0ef8efa (Fixed qmc_loop for sparse - works when diagonal&fast when large.)
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
@@ -9,7 +13,11 @@
     {
       "script": "simulations/simulation_just_sparse.jl",
       "target": "simulation_just_sparse",
+<<<<<<< HEAD
       "elapsed_seconds": 2894.80166195
+=======
+      "elapsed_seconds": 6159.446262458
+>>>>>>> 0ef8efa (Fixed qmc_loop for sparse - works when diagonal&fast when large.)
     }
   ]
 }

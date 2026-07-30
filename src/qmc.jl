@@ -71,6 +71,7 @@ struct QMCDataSparse{T,G<:QMCGenrator{T}}
     qmc_opts::QMCOpts{T}
     U_S::SparseMatrixCSC{T,Int}
     nz_ranges::Vector{UnitRange{Int}}
+    nz_range_empties::Vector{Bool}
 end
 
 
@@ -270,12 +271,14 @@ function QMCDataSparse(C::Matrix{T0},
 
     U_S = sparse(triu(U, 1))
     nz_ranges = Vector{UnitRange{Int}}(undef, n)
+    nz_range_empties = Vector{Bool}(undef, n)
 
     for i in 1:n
         nz_ranges[i] = U_S.colptr[i]:(U_S.colptr[i+1]-1)
+        nz_range_empties[i] = isempty(nz_ranges[i])
     end
 
-    return QMCDataSparse{T,typeof(qmc_generator)}(chol, chol.a, chol.b, qmc_generator, Ys, sub_mats, c_vecs, dc_vecs, p_vecs, qmc_reps, sum_p_threads, opts_use, U_S, nz_ranges)
+    return QMCDataSparse{T,typeof(qmc_generator)}(chol, chol.a, chol.b, qmc_generator, Ys, sub_mats, c_vecs, dc_vecs, p_vecs, qmc_reps, sum_p_threads, opts_use, U_S, nz_ranges, nz_range_empties)
 end
 
 
@@ -657,13 +660,15 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
                     #   s_j = view(Y_j, :, 1:i) * U_S[1:i, i+1]
                     # but without calling mul! inside the threaded region.
                     fill!(s_j, zero(T))
-                    nz_range_i = D.nz_ranges[i+1]
+                    if !D.nz_range_empties[i+1]
+                        nz_range_i = D.nz_ranges[i+1]
 
-                    @turbo check_empty=true for p_u in nz_range_i
-                        i_u = U_S.rowval[p_u] # 1 <= i_u <= i (strict upper-triangular)
-                        v_u = U_S.nzval[p_u]
-                        for i_b in 1:jlen
-                            s_j[i_b] = muladd(Y_j[i_b, i_u], v_u, s_j[i_b])
+                        @turbo for p_u in nz_range_i
+                            i_u = U_S.rowval[p_u] # 1 <= i_u <= i (strict upper-triangular)
+                            v_u = U_S.nzval[p_u]
+                            for i_b in 1:jlen
+                                s_j[i_b] = muladd(Y_j[i_b, i_u], v_u, s_j[i_b])
+                            end
                         end
                     end
 
@@ -771,7 +776,7 @@ end
 
 function qmc_pnorm!(
     D::Union{QMCData{T},QMCDataSparse{T},QMCData_Distributions{T}},
-    use_AppleBLAS=!use_MKL_instead_of_ACC,
+    use_AppleBLAS=(!use_MKL_instead_of_ACC),
 ) where T
     n = length(D.b)
     gen = D.qmc_gen

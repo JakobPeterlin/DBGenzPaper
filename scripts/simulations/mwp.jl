@@ -37,7 +37,6 @@ seed = 42
 
 
 Σ = (mattern_cov2(n_dim))
-Σ = (rand_spd(n_dim))
 k = (quantile(Normal(), (1 + 0.25^(1 / n_dim)) / 2))
 a = -sqrt.(diag(Σ)) * k
 b = (sqrt.(diag(Σ))) * k
