@@ -347,3 +347,4 @@ comparisson_times = vcat(comparisson_times_1, comparisson_times_2; cols=:union)
 
 CSV.write(sim_resultpath("comparisson_vals.csv"), comparisson_vals)
 CSV.write(sim_resultpath("comparisson_times.csv"), comparisson_times)
+
