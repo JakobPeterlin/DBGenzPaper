@@ -83,7 +83,7 @@ opts_r11x10 = QMC_opts(Float32; m=2^11 * 10, max_pts=2^11 * 10, max_abs_err=0.0)
 
 @time r11 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11, MersenneTwister(seed + i), :Richtmyer))[1] for i in 1:n_reps]
 @time r11x10 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11x10, MersenneTwister(seed + i), :Richtmyer))[1] for i in 1:n_reps]
-@time s11 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_s11, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
-@time s11x10 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_s11x10, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
+@time s11 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
+@time s11x10 = [qmc_pnorm!(QMCData(copy(Σ), copy(a), copy(b), opts_r11x10, MersenneTwister(seed + i), :Sobol))[1] for i in 1:n_reps]
 
 e = Float64.(sd.((r11, r11x10, s11, s11x10)))

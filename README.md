@@ -35,6 +35,7 @@ julia --project=. scripts/run_simulations.jl simulation_comparison simulation_sp
 **Available Targets:**
 - `simulation_comparison`
 - `simulation_sparse`
+- `simulation_FP32`
 - `simulation_precision`
 - `simulation_cholesky`
 - `simulation_mul!`

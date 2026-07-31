@@ -88,6 +88,65 @@ end
     @test length(k_js) == rank
 end
 
+@testset "Float32 Richtmyer generation uses Float64 sequence arithmetic" begin
+    n_dim = 1024
+    n_pts = 1024
+    gen = DBGenzPaper.RichtmyerQMC(
+        Float32,
+        n_dim,
+        n_pts,
+        1,
+        MersenneTwister(103),
+    )
+
+    @test eltype(gen.q) === Float64
+    @test eltype(gen.X) === Float32
+    @test all(0.0 .< gen.q .< 1.0)
+    @test length(unique(@view gen.X[:, end])) == n_pts
+
+    DBGenzPaper.next_points!(gen)
+    @test gen.n_base[] == n_pts
+    @test length(unique(@view gen.X[:, end])) == n_pts
+
+    DBGenzPaper.richtmyer_mat!(gen.X, gen.q, 2^20)
+    @test length(unique(@view gen.X[:, end])) == n_pts
+end
+
+@testset "Float32 QMC data uses Float64 reductions" begin
+    n_dim = 4
+    C = Matrix{Float32}(I, n_dim, n_dim)
+    a = fill(-1.0f0, n_dim)
+    b = fill(1.0f0, n_dim)
+    opts = QMC_opts(
+        Float32;
+        m=32,
+        max_pts=32,
+        max_abs_err=0.0f0,
+        block_size_i=4,
+        block_size_i2=2,
+        block_size_j=8,
+        n_reps=2,
+    )
+
+    dense = QMCData(copy(C), copy(a), copy(b), opts, MersenneTwister(104), :Richtmyer)
+    sparse = QMCDataSparse(copy(C), copy(a), copy(b), opts, MersenneTwister(105), :Richtmyer)
+    distributions = DBGenzPaper.QMCData_Distributions(
+        QMCData(copy(C), copy(a), copy(b), opts, MersenneTwister(106), :Richtmyer)
+    )
+
+    for data in (dense, sparse, distributions)
+        @test eltype(data.Ys[1]) === Float32
+        @test eltype(data.p_vecs[1]) === Float32
+        @test eltype(data.qmc_reps) === Float64
+        @test eltype(data.sum_p_threads) === Float64
+
+        value, error, n_pts = qmc_pnorm!(data)
+        @test value isa Float64
+        @test error isa Float64
+        @test n_pts == opts.m
+    end
+end
+
 @testset "qmc_pnorm! dense vs MvNormalCDF" begin
     rng = MersenneTwister(42)
     n_dim = 8

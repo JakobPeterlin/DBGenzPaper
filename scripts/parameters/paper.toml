@@ -14,6 +14,12 @@ n_diag = 30
 n_powers = [8, 9, 10, 11, 12]
 m_values = [24576, 245760]
 
+[simulation_FP32]
+n_reps = 100
+n_diag = 30
+n_powers = [8, 9, 10, 11, 12]
+m_values = [24576, 245760]
+
 [simulation_precision]
 n_powers = [6, 8, 10, 12]
 max_pts = 20480

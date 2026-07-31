@@ -7,6 +7,7 @@ const SCRIPT_MAP = Dict(
     "simulation_comparison" => "simulations/simulation_comparison.jl",
     "simulation_sparse" => "simulations/simulation_sparse.jl",
     "simulation_just_sparse" => "simulations/simulation_just_sparse.jl",
+    "simulation_FP32" => "simulations/simulation_FP32.jl",
     "simulation_precision" => "simulations/simulation_precision.jl",
     "simulation_cholesky" => "simulations/simulation_cholesky.jl",
     "simulation_mul!" => "simulations/simulation_mul!.jl",

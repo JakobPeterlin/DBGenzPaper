@@ -43,8 +43,8 @@ struct QMCData{T,G<:QMCGenrator{T}}
     c_vecs::Vector{Vector{T}}
     dc_vecs::Vector{Vector{T}}
     p_vecs::Vector{Vector{T}}
-    qmc_reps::Vector{T}
-    sum_p_threads::Vector{T}
+    qmc_reps::Vector{Float64}
+    sum_p_threads::Vector{Float64}
     qmc_opts::QMCOpts{T}
 end
 
@@ -66,8 +66,8 @@ struct QMCDataSparse{T,G<:QMCGenrator{T}}
     c_vecs::Vector{Vector{T}}
     dc_vecs::Vector{Vector{T}}
     p_vecs::Vector{Vector{T}}
-    qmc_reps::Vector{T}
-    sum_p_threads::Vector{T}
+    qmc_reps::Vector{Float64}
+    sum_p_threads::Vector{Float64}
     qmc_opts::QMCOpts{T}
     U_S::SparseMatrixCSC{T,Int}
     nz_ranges::Vector{UnitRange{Int}}
@@ -87,8 +87,8 @@ struct QMCData_Distributions{T,G<:QMCGenrator{T}}
     c_vecs::Vector{Vector{T}}
     dc_vecs::Vector{Vector{T}}
     p_vecs::Vector{Vector{T}}
-    qmc_reps::Vector{T}
-    sum_p_threads::Vector{T}
+    qmc_reps::Vector{Float64}
+    sum_p_threads::Vector{Float64}
     qmc_opts::QMCOpts{T}
 
     Z::Normal{T}
@@ -179,13 +179,13 @@ function QMCData(C::Matrix{T0},
     else
         RichtmyerQMC(T, n - 1, m, n_reps, rng)
     end
-    Ys = [zeros(block_size_j, n - 1) for i in 1:n_blocks]
+    Ys = [zeros(T, block_size_j, n - 1) for _ in 1:n_blocks]
     sub_mats = [zeros(T, block_size_j, block_size_i) for i in 1:n_blocks]
     c_vecs = [zeros(T, block_size_j) for i in 1:n_blocks]
     dc_vecs = deepcopy(c_vecs)
     p_vecs = deepcopy(c_vecs)
-    qmc_reps = zeros(T, n_reps)
-    sum_p_threads = zeros(T, n_blocks)
+    qmc_reps = zeros(Float64, n_reps)
+    sum_p_threads = zeros(Float64, n_blocks)
     chol = if T0 == T
         cholesky_genz!(copy(C), copy(a), copy(b), opts.chol_block_size, opts.chol_block_size2)
     else
@@ -257,8 +257,8 @@ function QMCDataSparse(C::Matrix{T0},
     c_vecs = [zeros(T, block_size_j) for _ in 1:n_blocks]
     dc_vecs = deepcopy(c_vecs)
     p_vecs = deepcopy(c_vecs)
-    qmc_reps = zeros(T, n_reps)
-    sum_p_threads = zeros(T, n_blocks)
+    qmc_reps = zeros(Float64, n_reps)
+    sum_p_threads = zeros(Float64, n_blocks)
     chol = if T0 == T
         cholesky_classic!(copy(C), copy(a), copy(b), opts.chol_block_size, opts.chol_block_size2)
     else
@@ -327,7 +327,7 @@ function qmc_loop!(D::QMCData{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T,G}
 
     for k in 1:length(D.qmc_reps)
         sum_p_threads = D.sum_p_threads
-        fill!(sum_p_threads, zero(T))
+        fill!(sum_p_threads, 0.0)
 
         @batch for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
@@ -431,13 +431,15 @@ function qmc_loop!(D::QMCData{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T,G}
                 end
             end
 
-            sum_p_threads[i_t] += sum(view(p_j, 1:length(r_j)))
+            sum_p_threads[i_t] += sum(Float64, view(p_j, 1:length(r_j)))
         end
 
         n_pts_local = opts.m
         n_pts_total = n_pts0 + n_pts_local
-        mean_rep = sum(sum_p_threads) / n_pts_total
-        D.qmc_reps[k] = D.qmc_reps[k] * (n_pts0 / n_pts_total) + mean_rep
+        inv_n_pts_total = inv(Float64(n_pts_total))
+        mean_rep = sum(sum_p_threads) * inv_n_pts_total
+        old_weight = Float64(n_pts0) * inv_n_pts_total
+        D.qmc_reps[k] = muladd(D.qmc_reps[k], old_weight, mean_rep)
     end
 end
 
@@ -495,7 +497,7 @@ function qmc_loop!(D::QMCData_Distributions{T,G}, n_pts0::Int, c_1::T, dc_1::T) 
 
     for k in 1:length(D.qmc_reps)
         sum_p_threads = D.sum_p_threads
-        fill!(sum_p_threads, zero(T))
+        fill!(sum_p_threads, 0.0)
 
         @batch for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
@@ -593,13 +595,15 @@ function qmc_loop!(D::QMCData_Distributions{T,G}, n_pts0::Int, c_1::T, dc_1::T) 
                 end
             end
 
-            sum_p_threads[i_t] += sum(view(p_j, 1:length(r_j)))
+            sum_p_threads[i_t] += sum(Float64, view(p_j, 1:length(r_j)))
         end
 
         n_pts_local = opts.m
         n_pts_total = n_pts0 + n_pts_local
-        mean_rep = sum(sum_p_threads) / n_pts_total
-        D.qmc_reps[k] = D.qmc_reps[k] * (n_pts0 / n_pts_total) + mean_rep
+        inv_n_pts_total = inv(Float64(n_pts_total))
+        mean_rep = sum(sum_p_threads) * inv_n_pts_total
+        old_weight = Float64(n_pts0) * inv_n_pts_total
+        D.qmc_reps[k] = muladd(D.qmc_reps[k], old_weight, mean_rep)
     end
 end
 
@@ -626,7 +630,7 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
 
     for k in 1:length(D.qmc_reps)
         sum_p_threads = D.sum_p_threads
-        fill!(sum_p_threads, zero(T))
+        fill!(sum_p_threads, 0.0)
 
         @batch for j1 in 1:opts.block_size_j:opts.m
             j2 = min(j1 + opts.block_size_j - 1, opts.m)
@@ -701,13 +705,15 @@ function qmc_loop!(D::QMCDataSparse{T,G}, n_pts0::Int, c_1::T, dc_1::T) where {T
                 end
             end
 
-            sum_p_threads[i_t] += sum(view(p_j, 1:jlen))
+            sum_p_threads[i_t] += sum(Float64, view(p_j, 1:jlen))
         end
 
         n_pts_local = opts.m
         n_pts_total = n_pts0 + n_pts_local
-        mean_rep = sum(sum_p_threads) / n_pts_total
-        D.qmc_reps[k] = D.qmc_reps[k] * (n_pts0 / n_pts_total) + mean_rep
+        inv_n_pts_total = inv(Float64(n_pts_total))
+        mean_rep = sum(sum_p_threads) * inv_n_pts_total
+        old_weight = Float64(n_pts0) * inv_n_pts_total
+        D.qmc_reps[k] = muladd(D.qmc_reps[k], old_weight, mean_rep)
     end
 end
 
@@ -781,7 +787,7 @@ function qmc_pnorm!(
     n = length(D.b)
     gen = D.qmc_gen
 
-    fill!(D.qmc_reps, zero(T))
+    fill!(D.qmc_reps, 0.0)
     n_reps = length(D.qmc_reps)
 
     b_t = BLAS.get_num_threads()
@@ -842,4 +848,3 @@ function qmc_pnorm!(
 
     return result, err_acc, n_pts
 end
-

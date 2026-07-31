@@ -6,7 +6,7 @@ using Sobol, Primes, Random, LoopVectorization
 
 
 struct RichtmyerQMC{T}
-    q::Vector{T}
+    q::Vector{Float64}
     X::Matrix{T}
     shifts::Matrix{T}
     n_base::Ref{Int}
@@ -45,7 +45,7 @@ QMCGenrator{T} = Union{RichtmyerQMC{T},SobolQMC{T}}
 
 
 function RichtmyerQMC(T, n::Int, m::Int, n_reps::Int, rng::AbstractRNG=Random.default_rng())
-    q = zeros(T, n)
+    q = zeros(Float64, n)
     get_sqrt_primes!(q)
     X = zeros(T, m, n)
     richtmyer_mat!(X, q, 0)
@@ -297,12 +297,13 @@ end
 
 
 
-function get_sqrt_primes!(q::Vector{T}, p=1) where T
+function get_sqrt_primes!(q::Vector{Float64}, p=1)
     n = length(q)
 
     for i in 1:n
         p = nextprime(p + 1)
-        q[i] = T(sqrt(p))
+        sqrt_p = sqrt(Float64(p))
+        q[i] = sqrt_p - floor(sqrt_p)
     end
 
     return q
@@ -310,13 +311,13 @@ end
 
 
 
-function richtmyer_mat!(X::Matrix{T}, q::Vector{T}, n_0::Int) where T
+function richtmyer_mat!(X::Matrix{T}, q::Vector{Float64}, n_0::Int) where T
 
     for j in axes(X, 2)
         q_j = q[j]
 
         @turbo for i in axes(X, 1)
-            x = (n_0 + i) * q_j
+            x = Float64(n_0 + i) * q_j
             X[i, j] = x - floor(x)
         end
     end
