@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-07-31T21:13:11.191",
+  "timestamp_utc": "2026-07-31T21:17:58.092",
   "project": "DBGenzPaper",
   "config_path": "scripts/parameters/paper.toml",
   "targets": [
@@ -9,7 +9,7 @@
     {
       "script": "simulations/simulation_FP32.jl",
       "target": "simulation_FP32",
-      "elapsed_seconds": 2306.469100734
+      "elapsed_seconds": 3221.28402775
     }
   ]
 }
