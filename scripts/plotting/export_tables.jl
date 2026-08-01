@@ -7,7 +7,7 @@ using PrettyTables
 using Printf
 
 const SPARSE_DENSE_METHOD_LABELS = Dict(
-    "pnorm" => "DB-FP64",
+    "pnorm" => "DB",
     "pnorm32" => "DB-FP32",
     "pnorm_sparse" => "DB-Sparse",
     "pnorm_sparse32" => "DB-Sparse-FP32",
@@ -17,7 +17,7 @@ const SPARSE_DENSE_METHOD_LABELS = Dict(
 const COMPARISON_METHOD_LABELS = Dict(
     "pnorm" => "DB",
     "mvnmvt" => "mvtnorm",
-    "mvnormcdf" => "MvNormCDF.jl",
+    "mvnormcdf" => "MvNormalCDF.jl",
     "tlr" => "tlrmvnmvt::GenzBretz",
 )
 
@@ -35,9 +35,93 @@ const SPARSE_DENSE_MATRIX_ORDER = Dict(
     "mattern_cov1" => 2,
 )
 
+const SPARSE_DENSE_RESULT_KEYS = [:method, :n, :n_pts, :matrix]
+const SPARSE_DENSE_SETTING_KEYS = [:n, :n_pts, :matrix]
+const SPARSE_DENSE_SOURCE_METHODS = (
+    original=["pnorm", "tlr"],
+    just=["pnorm_sparse"],
+    fp32=["pnorm32", "pnorm_sparse32"],
+)
+const SPARSE_DENSE_TABLE_PARTS = (
+    ["fixed_dense", "mattern_cov1"],
+    ["mattern_cov2"],
+)
+
 label_methods!(methods, labels) = replace!(methods, [k => v for (k, v) in labels]...)
 label_matrix(matrix) = get(MATRIX_LABELS, matrix, matrix)
 matrix_order(matrix) = get(SPARSE_DENSE_MATRIX_ORDER, matrix, typemax(Int))
+
+function select_sparse_dense_methods(
+    df::AbstractDataFrame,
+    methods::AbstractVector{<:AbstractString},
+    filename::AbstractString,
+)
+    selected = DataFrame(df[in.(string.(df.method), Ref(Set(methods))), :])
+    found_methods = Set(string.(selected.method))
+    expected_methods = Set(methods)
+    found_methods == expected_methods || error(
+        "$(filename) does not contain all required methods " *
+        "$(sort!(collect(expected_methods))); found $(sort!(collect(found_methods)))",
+    )
+    any(nonunique(selected, SPARSE_DENSE_RESULT_KEYS)) &&
+        error("$(filename) contains duplicate sparse-result keys")
+    return selected
+end
+
+function validate_sparse_dense_coverage(df::AbstractDataFrame)
+    methods = vcat(
+        SPARSE_DENSE_SOURCE_METHODS.original,
+        SPARSE_DENSE_SOURCE_METHODS.just,
+        SPARSE_DENSE_SOURCE_METHODS.fp32,
+    )
+    baseline = unique(select(df[df.method.=="pnorm", :], SPARSE_DENSE_SETTING_KEYS))
+
+    for method in methods
+        settings = unique(select(df[df.method.==method, :], SPARSE_DENSE_SETTING_KEYS))
+        missing_settings = antijoin(baseline, settings; on=SPARSE_DENSE_SETTING_KEYS)
+        extra_settings = antijoin(settings, baseline; on=SPARSE_DENSE_SETTING_KEYS)
+        if !isempty(missing_settings) || !isempty(extra_settings)
+            error(
+                "Method $(method) does not cover the same sparse-result settings as DB " *
+                "(missing: $(nrow(missing_settings)), extra: $(nrow(extra_settings)))",
+            )
+        end
+    end
+    return df
+end
+
+"""
+    read_sparse_dense_sources(original_filename, just_filename, fp32_filename)
+
+Assemble one sparse-comparison result set from the requested sources: DB and
+TLR from `original_filename`, DB-Sparse from `just_filename`, and DB-FP32 plus
+DB-Sparse-FP32 from `fp32_filename`.
+"""
+function read_sparse_dense_sources(
+    original_filename::AbstractString,
+    just_filename::AbstractString,
+    fp32_filename::AbstractString,
+)
+    original = CSV.read(resultpath(original_filename), DataFrame)
+    just = CSV.read(resultpath(just_filename), DataFrame)
+    fp32 = CSV.read(resultpath(fp32_filename), DataFrame)
+    names(original) == names(just) == names(fp32) ||
+        error("Sparse-result schemas differ between source files")
+
+    selected = vcat(
+        select_sparse_dense_methods(
+            original,
+            SPARSE_DENSE_SOURCE_METHODS.original,
+            original_filename,
+        ),
+        select_sparse_dense_methods(just, SPARSE_DENSE_SOURCE_METHODS.just, just_filename),
+        select_sparse_dense_methods(fp32, SPARSE_DENSE_SOURCE_METHODS.fp32, fp32_filename);
+        cols=:setequal,
+    )
+    selected.method = String.(selected.method)
+    validate_sparse_dense_coverage(selected)
+    return selected
+end
 
 function write_latex_table(filename::AbstractString, df::DataFrame; formatters)
     path = resultpath(filename)
@@ -114,6 +198,29 @@ function export_sparse_dense_table(times_filename::AbstractString, vals_filename
     df_times = CSV.read(resultpath(times_filename), DataFrame)
     df_vals = CSV.read(resultpath(vals_filename), DataFrame)
     export_sparse_dense_table(df_times, df_vals, output_filename)
+end
+
+function export_sparse_dense_table_parts(
+    df_times::AbstractDataFrame,
+    df_vals::AbstractDataFrame,
+    output_prefix::AbstractString,
+)
+    expected_matrices = Set(vcat(SPARSE_DENSE_TABLE_PARTS...))
+    time_matrices = Set(string.(df_times.matrix))
+    value_matrices = Set(string.(df_vals.matrix))
+    time_matrices == value_matrices == expected_matrices || error(
+        "Sparse table parts must cover exactly $(sort!(collect(expected_matrices))); " *
+        "time matrices: $(sort!(collect(time_matrices))), " *
+        "value matrices: $(sort!(collect(value_matrices)))",
+    )
+
+    for (part, matrices) in enumerate(SPARSE_DENSE_TABLE_PARTS)
+        times_part = df_times[in.(string.(df_times.matrix), Ref(Set(matrices))), :]
+        vals_part = df_vals[in.(string.(df_vals.matrix), Ref(Set(matrices))), :]
+        output_filename = "$(output_prefix)$(part).tex"
+        export_sparse_dense_table(times_part, vals_part, output_filename)
+        println("Exported $(resultpath(output_filename))")
+    end
 end
 
 function export_comparison_table(times_filename::AbstractString, vals_filename::AbstractString,
@@ -247,10 +354,34 @@ end
 
 function main()
     println("Processing Sparse vs Dense...")
-    export_sparse_dense_table("sparse_dense_times.csv", "sparse_dense_vals.csv", "table_sparse_dense.tex")
+    sparse_times = read_sparse_dense_sources(
+        "sparse_dense_times.csv",
+        "sparse_dense_times_just.csv",
+        "sparse_dense_times_FP32.csv",
+    )
+    sparse_vals = read_sparse_dense_sources(
+        "sparse_dense_vals.csv",
+        "sparse_dense_vals_just.csv",
+        "sparse_dense_vals_FP32.csv",
+    )
+    export_sparse_dense_table_parts(sparse_times, sparse_vals, "table_sparse_dense")
 
     println("Processing Sparse vs Dense (Intel)...")
-    export_sparse_dense_table("sparse_dense_timesIntel.csv", "sparse_dense_valsIntel.csv", "table_sparse_denseIntel.tex")
+    sparse_times_intel = read_sparse_dense_sources(
+        "sparse_dense_timesIntel.csv",
+        "sparse_dense_times_justIntel.csv",
+        "sparse_dense_times_FP32Intel.csv",
+    )
+    sparse_vals_intel = read_sparse_dense_sources(
+        "sparse_dense_valsIntel.csv",
+        "sparse_dense_vals_justIntel.csv",
+        "sparse_dense_vals_FP32Intel.csv",
+    )
+    export_sparse_dense_table_parts(
+        sparse_times_intel,
+        sparse_vals_intel,
+        "table_sparse_denseIntel",
+    )
 
     println("Processing Method Comparison...")
     export_comparison_table("comparisson_times.csv", "comparisson_vals.csv", "table_comparison.tex")

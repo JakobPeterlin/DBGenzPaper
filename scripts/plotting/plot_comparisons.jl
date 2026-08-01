@@ -1,4 +1,4 @@
-include(joinpath(@__DIR__, "..", "simulations", "setup.jl"))
+include(joinpath(@__DIR__, "export_tables.jl"))
 
 using CSV
 using DataFrames
@@ -18,15 +18,24 @@ function comparison_path(filename::AbstractString)
     return path
 end
 
-function read_machine_results(apple_filename::AbstractString, intel_filename::AbstractString)
-    df_apple = CSV.read(comparison_path(apple_filename), DataFrame)
+function read_machine_results(
+    apple_results::AbstractDataFrame,
+    intel_results::AbstractDataFrame,
+)
+    df_apple = DataFrame(apple_results; copycols=true)
     df_apple.machine .= machine_order[1]
-    df_intel = CSV.read(comparison_path(intel_filename), DataFrame)
+    df_intel = DataFrame(intel_results; copycols=true)
     df_intel.machine .= machine_order[2]
 
     df = vcat(df_apple, df_intel; cols=:union)
     df.machine = categorical(df.machine; ordered=true, levels=machine_order)
     return df
+end
+
+function read_machine_results(apple_filename::AbstractString, intel_filename::AbstractString)
+    df_apple = CSV.read(comparison_path(apple_filename), DataFrame)
+    df_intel = CSV.read(comparison_path(intel_filename), DataFrame)
+    return read_machine_results(df_apple, df_intel)
 end
 
 function add_n_ticks(df::DataFrame; n_col::Symbol)
@@ -69,9 +78,19 @@ matrix_label_map = Dict(
     "fixed_dense" => L"$\Sigma_2$",
     "mattern_cov1" => L"$\Sigma_3$",
 )
-matrix_order = [L"$\Sigma_2$", L"$\Sigma_3$", L"$\Sigma_4$"]
+matrix_levels = [L"$\Sigma_2$", L"$\Sigma_3$", L"$\Sigma_4$"]
 
-df_sd = read_machine_results("sparse_dense_times.csv", "sparse_dense_timesIntel.csv")
+df_sd_apple = read_sparse_dense_sources(
+    "sparse_dense_times.csv",
+    "sparse_dense_times_just.csv",
+    "sparse_dense_times_FP32.csv",
+)
+df_sd_intel = read_sparse_dense_sources(
+    "sparse_dense_timesIntel.csv",
+    "sparse_dense_times_justIntel.csv",
+    "sparse_dense_times_FP32Intel.csv",
+)
+df_sd = read_machine_results(df_sd_apple, df_sd_intel)
 df_sd = df_sd[df_sd.n_pts.==sd_max_pts, :]
 df_sd_p = df_sd[df_sd.method.=="pnorm", vcat(indicator_cols, [:min])]
 rename!(df_sd_p, :min => :pnorm_min)
@@ -90,7 +109,7 @@ replace!(
 df_sd = df_sd[in.(df_sd.method, Ref(sd_method_order)), :]
 df_sd.method = categorical(df_sd.method; ordered=true, levels=sd_method_order)
 df_sd.matrix_label = [get(matrix_label_map, string(m), latexstring(string(m))) for m in df_sd.matrix]
-df_sd.matrix_label = categorical(df_sd.matrix_label; ordered=true, levels=matrix_order)
+df_sd.matrix_label = categorical(df_sd.matrix_label; ordered=true, levels=matrix_levels)
 n_levels_sd, n_labels_sd = add_n_ticks(df_sd; n_col=:n)
 y_ticks_sd = ratio_y_ticks(df_sd.ratio)
 
@@ -140,7 +159,7 @@ replace!(
     df_cmp.method,
     "pnorm" => "DB",
     "mvnmvt" => "mvtnorm",
-    "mvnormcdf" => "MvNormCDF.jl",
+    "mvnormcdf" => "MvNormalCDF.jl",
     "tlr" => "tlrmvnmvt::GenzBretz",
 )
 
